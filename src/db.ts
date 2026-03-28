@@ -97,6 +97,17 @@ export function initDb() {
     );
 
     CREATE INDEX IF NOT EXISTS idx_gate_crossings_gate ON gate_crossings(gate_id, timestamp);
+
+    CREATE TABLE IF NOT EXISTS external_counts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      source_id TEXT NOT NULL,
+      source_type TEXT NOT NULL DEFAULT 'bluetooth',
+      count INTEGER NOT NULL,
+      metadata TEXT,
+      timestamp INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_external_counts_source ON external_counts(source_id, timestamp);
   `);
 
   console.log('[db] Schema initialised');

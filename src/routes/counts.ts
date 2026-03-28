@@ -12,8 +12,29 @@ router.get('/', (_req: Request, res: Response) => {
     FROM zones z WHERE z.active = 1
   `).all();
 
-  const total = (rows as any[]).reduce((s, r) => s + (r.count || 0), 0);
-  res.json({ total, zones: rows });
+  const cameraTotal = (rows as any[]).reduce((s, r) => s + (r.count || 0), 0);
+
+  // Include fresh external counts (< 2 min old)
+  const extRows = db.prepare(`
+    SELECT e.source_id, e.source_type, e.count
+    FROM external_counts e
+    INNER JOIN (
+      SELECT source_id, MAX(timestamp) as max_ts
+      FROM external_counts GROUP BY source_id
+    ) latest ON e.source_id = latest.source_id AND e.timestamp = latest.max_ts
+    WHERE e.timestamp > strftime('%s','now') - 120
+  `).all() as any[];
+
+  const externalTotal = extRows.reduce((s, r) => s + (r.count || 0), 0);
+  const total = cameraTotal + externalTotal;
+
+  res.json({
+    total,
+    camera_total: cameraTotal,
+    external_total: externalTotal,
+    zones: rows,
+    external_sources: extRows.length > 0 ? extRows : undefined,
+  });
 });
 
 // Historical counts
