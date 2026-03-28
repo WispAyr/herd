@@ -77,6 +77,26 @@ export function initDb() {
     );
 
     CREATE INDEX IF NOT EXISTS idx_alerts_zone ON alerts(zone_id, active);
+
+    CREATE TABLE IF NOT EXISTS gates (
+      id TEXT PRIMARY KEY,
+      camera_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      line_y REAL NOT NULL DEFAULT 0.5,
+      active INTEGER DEFAULT 1,
+      created_at INTEGER DEFAULT (strftime('%s','now')),
+      FOREIGN KEY (camera_id) REFERENCES cameras(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS gate_crossings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      gate_id TEXT NOT NULL,
+      direction TEXT NOT NULL CHECK(direction IN ('entry','exit')),
+      timestamp INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+      FOREIGN KEY (gate_id) REFERENCES gates(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_gate_crossings_gate ON gate_crossings(gate_id, timestamp);
   `);
 
   console.log('[db] Schema initialised');

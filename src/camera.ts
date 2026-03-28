@@ -15,6 +15,9 @@ const HAILO_API_URL = process.env.HAILO_API_URL || 'http://localhost:8080';
 // Per-camera centroid trackers
 const trackers = new Map<string, CentroidTracker>();
 
+// Per-camera previous centroid Y positions for gate crossing detection
+const prevCentroidY = new Map<string, Map<number, number>>(); // cameraId -> (trackId -> lastY)
+
 // Round-robin state
 let cameraQueue: string[] = [];
 let queueIdx = 0;
@@ -124,6 +127,34 @@ function updateZoneCounts(cameraId: string, bboxes: BBox[]) {
         label: flow.dominant_label
       }
     });
+  }
+
+  // ── Gate crossing detection ──────────────────────────────────────────
+  const gates = db.prepare('SELECT id, line_y FROM gates WHERE camera_id = ? AND active = 1').all(cameraId) as any[];
+  if (gates.length > 0) {
+    const camera = db.prepare('SELECT height FROM cameras WHERE id = ?').get(cameraId) as any;
+    const camH = camera?.height || 1080;
+    const prevY = prevCentroidY.get(cameraId) || new Map<number, number>();
+    const currentY = new Map<number, number>();
+    const objects = tracker.getObjects();
+
+    for (const obj of objects) {
+      const prev = prevY.get(obj.id);
+      currentY.set(obj.id, obj.cy);
+
+      if (prev !== undefined) {
+        for (const gate of gates) {
+          const linePixel = gate.line_y * camH;
+          // Crossing downward = entry, crossing upward = exit
+          if (prev < linePixel && obj.cy >= linePixel) {
+            db.prepare('INSERT INTO gate_crossings (gate_id, direction, timestamp) VALUES (?, ?, ?)').run(gate.id, 'entry', now);
+          } else if (prev > linePixel && obj.cy <= linePixel) {
+            db.prepare('INSERT INTO gate_crossings (gate_id, direction, timestamp) VALUES (?, ?, ?)').run(gate.id, 'exit', now);
+          }
+        }
+      }
+    }
+    prevCentroidY.set(cameraId, currentY);
   }
 
   // Broadcast to all WebSocket clients

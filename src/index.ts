@@ -13,6 +13,7 @@ import alertsRouter from './routes/alerts';
 import eventRouter from './routes/event';
 import historyRouter from './routes/history';
 import heatmapRouter from './routes/heatmap';
+import gatesRouter from './routes/gates';
 
 const PORT = parseInt(process.env.PORT || '3070', 10);
 
@@ -37,6 +38,7 @@ async function main() {
   app.use('/api/event', eventRouter);
   app.use('/api/history', historyRouter);
   app.use('/api/heatmap', heatmapRouter);
+  app.use('/api/gates', gatesRouter);
 
   // Per-instance dashboard
   app.get('/', (_req, res) => {

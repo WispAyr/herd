@@ -136,6 +136,10 @@ export class CentroidTracker {
     return { direction_x: avgVx, direction_y: avgVy, magnitude, dominant_label, count: this.objects.size };
   }
 
+  getObjects(): TrackedObject[] {
+    return Array.from(this.objects.values());
+  }
+
   reset() {
     this.objects.clear();
   }

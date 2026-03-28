@@ -251,6 +251,23 @@
     .sparkline-row { margin-top: 0.5rem; }
     .sparkline-row img { width: 100%; height: 30px; display: block; }
 
+    /* Gate counters */
+    .gates-section { margin-top: 1.5rem; }
+    .gates-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem;
+    }
+    .gate-card {
+      background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 1rem;
+    }
+    .gate-name { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.75rem; }
+    .gate-counts { display: flex; gap: 1rem; }
+    .gate-count-item { flex: 1; text-align: center; }
+    .gate-count-label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; }
+    .gate-count-value { font-size: 1.5rem; font-weight: 700; line-height: 1.2; }
+    .gate-count-value.entries { color: var(--green); }
+    .gate-count-value.exits { color: var(--amber); }
+    .gate-count-value.net { color: var(--blue); }
+
     /* Empty state */
     .empty-state {
       text-align: center;
@@ -368,6 +385,13 @@
         <h2>No zones configured</h2>
         <p>Add zones via the API: <code>POST /api/zones</code></p>
       </div>
+    </div>
+
+    <div class="gates-section" id="gates-section" style="display:none">
+      <div class="section-header">
+        <span class="section-title">Gate Counters (24h)</span>
+      </div>
+      <div class="gates-grid" id="gates-grid"></div>
     </div>
   </main>
 
@@ -550,10 +574,43 @@
           state.zones[z.id].capacity = z.capacity;
         }
         renderZones();
+        loadGates();
       } catch (err) {
         console.error('Failed to load initial data', err);
       }
     }
+
+    async function loadGates() {
+      try {
+        const res = await fetch('/api/gates/all/counts');
+        const gates = await res.json();
+        const section = document.getElementById('gates-section');
+        const grid = document.getElementById('gates-grid');
+        if (!Array.isArray(gates) || gates.length === 0) { section.style.display = 'none'; return; }
+        section.style.display = 'block';
+        grid.innerHTML = gates.map(g => `
+          <div class="gate-card">
+            <div class="gate-name">${g.gate_name}</div>
+            <div class="gate-counts">
+              <div class="gate-count-item">
+                <div class="gate-count-label">Entries</div>
+                <div class="gate-count-value entries">${g.entries}</div>
+              </div>
+              <div class="gate-count-item">
+                <div class="gate-count-label">Exits</div>
+                <div class="gate-count-value exits">${g.exits}</div>
+              </div>
+              <div class="gate-count-item">
+                <div class="gate-count-label">Net</div>
+                <div class="gate-count-value net">${g.net}</div>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      } catch {}
+    }
+    // Refresh gates every 10s
+    setInterval(loadGates, 10000);
 
     connect();
   </script>
