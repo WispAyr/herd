@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Herd — Heatmap</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0f; --bg2: #12121a; --bg3: #1a1a26; --border: #2a2a3a;
+      --text: #e0e0f0; --text-dim: #7070a0;
+      --green: #00ff88; --amber: #ffaa00; --red: #ff4444; --blue: #4488ff;
+      --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+
+    header {
+      display: flex; align-items: center; gap: 1rem; padding: 1rem 1.5rem;
+      background: var(--bg2); border-bottom: 1px solid var(--border);
+    }
+    .logo { display: flex; align-items: center; gap: 0.5rem; font-size: 1.5rem; font-weight: 700; color: var(--green); letter-spacing: 0.05em; }
+    .logo svg { width: 32px; height: 32px; }
+    .nav-links { margin-left: auto; display: flex; gap: 1rem; }
+    .nav-links a { color: var(--text-dim); text-decoration: none; font-size: 0.8rem; }
+    .nav-links a:hover { color: var(--green); }
+
+    main { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }
+
+    .controls { display: flex; gap: 1rem; margin-bottom: 1.5rem; align-items: center; flex-wrap: wrap; }
+    .controls select {
+      background: var(--bg2); color: var(--text); border: 1px solid var(--border);
+      border-radius: 6px; padding: 0.5rem 1rem; font-size: 0.85rem;
+    }
+    .controls button {
+      background: var(--bg2); color: var(--text); border: 1px solid var(--border);
+      border-radius: 6px; padding: 0.5rem 1rem; font-size: 0.85rem; cursor: pointer;
+    }
+    .controls button.active { background: var(--green); color: var(--bg); font-weight: 600; }
+
+    .heatmap-wrapper {
+      position: relative;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      aspect-ratio: 16/9;
+      max-height: 70vh;
+    }
+
+    #snapshot-img {
+      width: 100%; height: 100%; object-fit: contain;
+      position: absolute; top: 0; left: 0;
+    }
+
+    #heatmap-canvas {
+      width: 100%; height: 100%;
+      position: absolute; top: 0; left: 0;
+      pointer-events: none;
+    }
+
+    .status-bar {
+      display: flex; gap: 1rem; align-items: center; margin-top: 0.75rem;
+      font-size: 0.75rem; color: var(--text-dim);
+    }
+
+    .ws-dot {
+      width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+      background: var(--text-dim);
+    }
+    .ws-dot.connected { background: var(--green); box-shadow: 0 0 5px var(--green); }
+
+    .legend {
+      display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem;
+      font-size: 0.75rem; color: var(--text-dim);
+    }
+    .legend-bar {
+      width: 200px; height: 12px; border-radius: 3px;
+      background: linear-gradient(to right, rgba(0,255,136,0.1), rgba(0,255,136,0.5), rgba(255,170,0,0.7), rgba(255,68,68,0.9));
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="16" cy="10" r="5" fill="currentColor" opacity="0.9"/>
+        <ellipse cx="16" cy="22" rx="8" ry="5" fill="currentColor" opacity="0.7"/>
+        <ellipse cx="8" cy="22" rx="3" ry="4" fill="currentColor" opacity="0.5"/>
+        <ellipse cx="24" cy="22" rx="3" ry="4" fill="currentColor" opacity="0.5"/>
+        <path d="M11 8 Q6 4 5 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+        <path d="M21 8 Q26 4 27 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+      </svg>
+      HERD
+    </div>
+    <span style="color:var(--text-dim); font-size:0.85rem">Heatmap</span>
+    <div class="nav-links">
+      <a href="/">Dashboard</a>
+      <a href="/analytics">Analytics</a>
+      <a href="/event">Event</a>
+      <a href="/mobile">Mobile</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="controls">
+      <select id="camera-select"><option value="">Loading cameras...</option></select>
+      <button class="period-btn active" data-period="5m">5 min</button>
+      <button class="period-btn" data-period="1h">1 hour</button>
+      <span id="last-update" style="margin-left:auto;font-size:0.75rem;color:var(--text-dim)">--</span>
+    </div>
+
+    <div class="heatmap-wrapper">
+      <img id="snapshot-img" src="" alt="Camera snapshot" style="display:none">
+      <canvas id="heatmap-canvas"></canvas>
+    </div>
+
+    <div class="legend">
+      <span>Low</span>
+      <div class="legend-bar"></div>
+      <span>High</span>
+    </div>
+
+    <div class="status-bar">
+      <span class="ws-dot" id="ws-dot"></span>
+      <span id="ws-label">Connecting...</span>
+    </div>
+  </main>
+
+  <script>
+    let currentCamera = '';
+    let currentPeriod = '5m';
+    const GO2RTC_URL = ''; // relative — will use go2rtc through proxy or direct
+
+    async function loadCameras() {
+      const res = await fetch('/api/cameras');
+      const cameras = await res.json();
+      const sel = document.getElementById('camera-select');
+      if (!cameras.length) { sel.innerHTML = '<option value="">No cameras</option>'; return; }
+      sel.innerHTML = cameras.filter(c => c.active).map(c =>
+        `<option value="${c.id}" data-stream="${c.go2rtc_stream}">${c.name}</option>`
+      ).join('');
+      currentCamera = cameras[0].id;
+      loadHeatmap();
+    }
+
+    document.getElementById('camera-select').addEventListener('change', e => {
+      currentCamera = e.target.value;
+      loadHeatmap();
+    });
+
+    document.querySelectorAll('.period-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentPeriod = btn.dataset.period;
+        loadHeatmap();
+      });
+    });
+
+    async function loadHeatmap() {
+      if (!currentCamera) return;
+      try {
+        const res = await fetch(`/api/heatmap?camera_id=${currentCamera}&period=${currentPeriod}`);
+        const data = await res.json();
+        drawHeatmap(data);
+        document.getElementById('last-update').textContent = 'Updated ' + new Date().toLocaleTimeString();
+      } catch (err) {
+        console.error('Heatmap load failed:', err);
+      }
+    }
+
+    function drawHeatmap(data) {
+      const canvas = document.getElementById('heatmap-canvas');
+      const wrapper = canvas.parentElement;
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = wrapper.clientWidth * dpr;
+      canvas.height = wrapper.clientHeight * dpr;
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+
+      const W = wrapper.clientWidth;
+      const H = wrapper.clientHeight;
+      const grid = data.grid;
+      const gs = data.grid_size;
+
+      ctx.clearRect(0, 0, W, H);
+
+      const cellW = W / gs;
+      const cellH = H / gs;
+
+      for (let y = 0; y < gs; y++) {
+        for (let x = 0; x < gs; x++) {
+          const val = grid[y][x];
+          if (val <= 0.01) continue;
+
+          const color = densityColor(val);
+          ctx.fillStyle = color;
+          ctx.fillRect(x * cellW, y * cellH, cellW + 1, cellH + 1);
+        }
+      }
+    }
+
+    function densityColor(val) {
+      // green -> yellow -> red gradient with alpha
+      const alpha = 0.15 + val * 0.65;
+      if (val < 0.33) {
+        return `rgba(0, 255, 136, ${alpha})`;
+      } else if (val < 0.66) {
+        const t = (val - 0.33) / 0.33;
+        const r = Math.round(255 * t);
+        const g = Math.round(255 - 85 * t);
+        return `rgba(${r}, ${g}, 0, ${alpha})`;
+      } else {
+        const t = (val - 0.66) / 0.34;
+        const g = Math.round(170 * (1 - t));
+        return `rgba(255, ${g}, ${Math.round(68 * t)}, ${alpha})`;
+      }
+    }
+
+    // WebSocket for live updates
+    function connect() {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const ws = new WebSocket(`${proto}//${location.host}`);
+      const dot = document.getElementById('ws-dot');
+      const label = document.getElementById('ws-label');
+
+      ws.onopen = () => { dot.className = 'ws-dot connected'; label.textContent = 'Live'; };
+      ws.onclose = () => { dot.className = 'ws-dot'; label.textContent = 'Reconnecting...'; setTimeout(connect, 3000); };
+      ws.onerror = () => { dot.className = 'ws-dot'; label.textContent = 'Error'; };
+
+      ws.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === 'heatmap-update' && msg.camera_id === currentCamera) {
+            drawHeatmap(msg);
+            document.getElementById('last-update').textContent = 'Updated ' + new Date().toLocaleTimeString();
+          }
+        } catch {}
+      };
+    }
+
+    // Refresh every 10s
+    setInterval(loadHeatmap, 10000);
+    window.addEventListener('resize', loadHeatmap);
+
+    loadCameras();
+    connect();
+  </script>
+</body>
+</html>

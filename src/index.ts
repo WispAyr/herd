@@ -12,6 +12,7 @@ import flowRouter from './routes/flow';
 import alertsRouter from './routes/alerts';
 import eventRouter from './routes/event';
 import historyRouter from './routes/history';
+import heatmapRouter from './routes/heatmap';
 
 const PORT = parseInt(process.env.PORT || '3070', 10);
 
@@ -35,6 +36,7 @@ async function main() {
   app.use('/api/alerts', alertsRouter);
   app.use('/api/event', eventRouter);
   app.use('/api/history', historyRouter);
+  app.use('/api/heatmap', heatmapRouter);
 
   // Per-instance dashboard
   app.get('/', (_req, res) => {
@@ -49,6 +51,11 @@ async function main() {
   // Analytics page
   app.get('/analytics', (_req, res) => {
     res.sendFile(path.join(__dirname, 'analytics.html'));
+  });
+
+  // Heatmap page
+  app.get('/heatmap', (_req, res) => {
+    res.sendFile(path.join(__dirname, 'heatmap.html'));
   });
 
   // Catch-all for unknown routes
