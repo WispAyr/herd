@@ -5,6 +5,7 @@ import { initDb } from './db';
 import { initWebSocket } from './ws';
 import { startCameraLoop } from './camera';
 import { startAggregator, stopAggregator } from './aggregator';
+import { startSentryFlow, stopSentryFlow } from './sentryflow';
 import camerasRouter from './routes/cameras';
 import zonesRouter from './routes/zones';
 import countsRouter from './routes/counts';
@@ -92,10 +93,14 @@ async function main() {
   // Start event aggregator (only if HERD_SOURCES is set)
   startAggregator();
 
+  // Start SentryFlow integration (only if SENTRYFLOW_URL is set)
+  startSentryFlow();
+
   // Graceful shutdown
   process.on('SIGTERM', () => {
     console.log('[herd] SIGTERM received, shutting down...');
     stopAggregator();
+    stopSentryFlow();
     server.close(() => process.exit(0));
   });
 }

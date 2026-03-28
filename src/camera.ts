@@ -7,6 +7,7 @@ import { db } from './db';
 import { BBox, CentroidTracker } from './tracker';
 import { parsePolygon, countInZone } from './zones';
 import { broadcast } from './ws';
+import { forwardAlert } from './sentryflow';
 
 const GO2RTC_URL = process.env.GO2RTC_URL || 'http://localhost:1984';
 const HAILO_MODE = process.env.HAILO_MODE || 'auto';
@@ -111,6 +112,9 @@ function updateZoneCounts(cameraId: string, bboxes: BBox[]) {
         INSERT INTO alerts (zone_id, level, message, count, capacity, triggered_at)
         VALUES (?, ?, ?, ?, ?, ?)
       `).run(zone.id, level, `Zone "${zone.name}" at ${Math.round(pct * 100)}% capacity`, count, zone.capacity, now);
+
+      // Forward alert to SentryFlow (non-blocking)
+      forwardAlert(zone.id, zone.name, level, count, zone.capacity);
     }
 
     zoneUpdates.push({
