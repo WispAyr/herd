@@ -108,6 +108,14 @@ export function initDb() {
     );
 
     CREATE INDEX IF NOT EXISTS idx_external_counts_source ON external_counts(source_id, timestamp);
+
+    CREATE TABLE IF NOT EXISTS templates (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      config TEXT NOT NULL,
+      created_at INTEGER DEFAULT (strftime('%s','now'))
+    );
   `);
 
   console.log('[db] Schema initialised');
