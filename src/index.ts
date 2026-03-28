@@ -78,6 +78,11 @@ async function main() {
     res.sendFile(path.join(__dirname, 'mobile.html'));
   });
 
+  // VR Dashboard (Quest 3)
+  app.get('/vr', (_req, res) => {
+    res.sendFile(path.join(__dirname, 'vr.html'));
+  });
+
   // LoRaWAN dashboard
   app.get('/lorawan', (_req, res) => {
     res.sendFile(path.join(__dirname, 'lorawan.html'));

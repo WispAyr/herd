@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Herd VR — Crowd Command Center</title>
+  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0f; color: #e0e0f0; font-family: system-ui, sans-serif; overflow: hidden; }
+
+    /* Flat mode overlay */
+    #flat-overlay {
+      position: fixed; inset: 0; z-index: 100;
+      display: flex; flex-direction: column; align-items: center;
+      background: #0a0a0f;
+      overflow-y: auto; padding: 1rem;
+    }
+    #flat-overlay.hidden { display: none; }
+
+    .flat-header {
+      text-align: center; padding: 1.5rem 0;
+      font-size: 1.2rem; color: #7070a0;
+    }
+    .flat-header h1 { font-size: 2rem; color: #00ff88; margin-bottom: 0.3rem; }
+
+    .flat-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem; width: 100%; max-width: 1200px; padding: 0 1rem;
+    }
+
+    .flat-card {
+      background: rgba(255,255,255,0.03);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px; padding: 1.2rem;
+      transform: perspective(800px) rotateY(-1deg);
+      transition: transform 0.3s;
+    }
+    .flat-card:hover { transform: perspective(800px) rotateY(0deg) scale(1.02); }
+    .flat-card h3 { font-size: 0.85rem; color: #7070a0; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    .big-number { font-size: 3.5rem; font-weight: 700; line-height: 1; }
+    .green { color: #00ff88; }
+    .amber { color: #ffaa00; }
+    .red { color: #ff4444; }
+    .blue { color: #4488ff; }
+    .dim { color: #7070a0; font-size: 0.85rem; }
+
+    .trend-row { display: flex; align-items: baseline; gap: 0.8rem; margin-top: 0.5rem; }
+    .rate { font-size: 1.4rem; font-weight: 600; }
+
+    .zone-bar { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; margin-top: 0.5rem; }
+    .zone-bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+
+    .source-row { display: flex; gap: 1rem; margin-top: 0.4rem; font-size: 0.8rem; color: #7070a0; }
+
+    .enter-vr-btn {
+      position: fixed; bottom: 2rem; right: 2rem; z-index: 200;
+      background: linear-gradient(135deg, #4488ff, #00ff88);
+      color: #0a0a0f; border: none; padding: 1rem 2rem;
+      border-radius: 50px; font-size: 1.1rem; font-weight: 700;
+      cursor: pointer; box-shadow: 0 4px 20px rgba(0,255,136,0.3);
+    }
+    .enter-vr-btn:hover { transform: scale(1.05); }
+
+    .alert-banner {
+      width: 100%; max-width: 1200px; padding: 0.8rem 1.2rem;
+      background: rgba(255,68,68,0.15); border: 1px solid #ff4444;
+      border-radius: 8px; margin-bottom: 1rem; display: none;
+      font-size: 0.9rem; color: #ff4444;
+    }
+    .alert-banner.active { display: block; }
+
+    .nav-links {
+      display: flex; gap: 1rem; margin-top: 0.5rem;
+    }
+    .nav-links a { color: #7070a0; text-decoration: none; font-size: 0.8rem; }
+    .nav-links a:hover { color: #e0e0f0; }
+
+    @media (max-width: 600px) {
+      .flat-grid { grid-template-columns: 1fr; }
+      .big-number { font-size: 2.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══ FLAT MODE (default) ═══ -->
+<div id="flat-overlay">
+  <div class="flat-header">
+    <h1>🐂 HERD VR</h1>
+    <div>Crowd Command Center</div>
+    <div class="nav-links">
+      <a href="/">Dashboard</a>
+      <a href="/analytics">Analytics</a>
+      <a href="/lorawan">LoRaWAN</a>
+      <a href="/meshmap">Airspace</a>
+      <a href="/mobile">Mobile</a>
+    </div>
+  </div>
+
+  <div class="alert-banner" id="flat-alert"></div>
+
+  <div class="flat-grid">
+    <!-- Main Stats -->
+    <div class="flat-card" style="grid-column: span 2">
+      <h3>Total Occupancy</h3>
+      <div class="big-number green" id="f-total">—</div>
+      <div class="trend-row">
+        <span class="rate" id="f-rate">—</span>
+        <span class="dim" id="f-trend">loading...</span>
+      </div>
+      <div class="dim" id="f-prediction" style="margin-top:0.5rem"></div>
+      <div class="source-row">
+        <span>📹 Camera: <strong id="f-cam">—</strong></span>
+        <span>📡 BLE: <strong id="f-ble">—</strong></span>
+        <span>📻 LoRa: <strong id="f-lora">—</strong></span>
+      </div>
+    </div>
+
+    <!-- Zones (dynamic) -->
+    <div id="f-zones"></div>
+
+    <!-- LoRa Gateway -->
+    <div class="flat-card" id="f-gw-card">
+      <h3>📻 LoRaWAN Gateway</h3>
+      <div id="f-gw">Loading...</div>
+    </div>
+
+    <!-- Mesh-Mapper -->
+    <div class="flat-card" id="f-mesh-card">
+      <h3>🛩️ Airspace & Environment</h3>
+      <div id="f-mesh">Loading...</div>
+    </div>
+
+    <!-- External Sources -->
+    <div class="flat-card" id="f-ext-card">
+      <h3>📡 External Sources</h3>
+      <div id="f-ext">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<button class="enter-vr-btn" id="vr-btn" style="display:none" onclick="enterVR()">🥽 Enter VR</button>
+
+<!-- ═══ A-FRAME VR SCENE ═══ -->
+<a-scene
+  id="vr-scene"
+  vr-mode-ui="enabled: false"
+  background="color: #050510"
+  renderer="antialias: true; colorManagement: true"
+  loading-screen="enabled: false"
+>
+  <!-- Environment -->
+  <a-entity id="env">
+    <a-grid id="floor" geometry="primitive: plane; width: 40; height: 40"
+      material="color: #0a0a1a; opacity: 0.5; transparent: true"
+      rotation="-90 0 0" position="0 -0.01 0"></a-grid>
+    <a-sky color="#050510"></a-sky>
+    <a-light type="ambient" color="#334" intensity="0.4"></a-light>
+    <a-light type="point" color="#4488ff" intensity="0.6" position="0 4 -2"></a-light>
+  </a-entity>
+
+  <!-- Camera rig -->
+  <a-entity id="rig" position="0 1.6 0">
+    <a-camera look-controls wasd-controls>
+      <a-cursor color="#00ff88" fuse="false" raycaster="objects: .clickable"></a-cursor>
+    </a-camera>
+  </a-entity>
+
+  <!-- ═══ CENTER: Main Stats ═══ -->
+  <a-entity id="vr-main" position="0 1.8 -2.5">
+    <!-- Background panel -->
+    <a-plane width="2.4" height="1.4"
+      material="color: #141428; opacity: 0.75; transparent: true; side: double"
+      class="glass-panel"></a-plane>
+
+    <a-text id="vr-title" value="🐂 HERD" position="0 0.5 0.01"
+      align="center" color="#00ff88" width="3" font="mozillavr"></a-text>
+
+    <a-text id="vr-total" value="—" position="0 0.2 0.01"
+      align="center" color="#00ff88" width="8" font="mozillavr"></a-text>
+
+    <a-text id="vr-label" value="people detected" position="0 -0.05 0.01"
+      align="center" color="#7070a0" width="2.5"></a-text>
+
+    <a-text id="vr-rate-text" value="" position="0 -0.25 0.01"
+      align="center" color="#ffaa00" width="3"></a-text>
+
+    <a-text id="vr-pred-text" value="" position="0 -0.4 0.01"
+      align="center" color="#7070a0" width="2.2"></a-text>
+
+    <a-text id="vr-sources" value="📹 — | 📡 — | 📻 —" position="0 -0.55 0.01"
+      align="center" color="#7070a0" width="2"></a-text>
+  </a-entity>
+
+  <!-- ═══ LEFT ARC: Zones ═══ -->
+  <a-entity id="vr-zones"></a-entity>
+
+  <!-- ═══ RIGHT ARC: Intelligence ═══ -->
+  <!-- LoRa Gateway -->
+  <a-entity id="vr-lora" position="1.8 1.6 -1.8" rotation="0 -30 0">
+    <a-plane width="1.4" height="0.9"
+      material="color: #141428; opacity: 0.75; transparent: true; side: double"></a-plane>
+    <a-text value="📻 LoRaWAN" position="0 0.3 0.01"
+      align="center" color="#4488ff" width="2"></a-text>
+    <a-text id="vr-gw-text" value="Loading..." position="0 0 0.01"
+      align="center" color="#e0e0f0" width="1.8"></a-text>
+  </a-entity>
+
+  <!-- Mesh-mapper / Airspace -->
+  <a-entity id="vr-mesh" position="2.2 1.6 -0.8" rotation="0 -50 0">
+    <a-plane width="1.4" height="0.9"
+      material="color: #141428; opacity: 0.75; transparent: true; side: double"></a-plane>
+    <a-text value="🛩️ Airspace" position="0 0.3 0.01"
+      align="center" color="#ffaa00" width="2"></a-text>
+    <a-text id="vr-mesh-text" value="Loading..." position="0 0 0.01"
+      align="center" color="#e0e0f0" width="1.8"></a-text>
+  </a-entity>
+
+  <!-- ═══ ABOVE: Alert banner ═══ -->
+  <a-entity id="vr-alert" position="0 2.8 -2.5" visible="false">
+    <a-plane width="2.4" height="0.3"
+      material="color: #440000; opacity: 0.85; transparent: true"></a-plane>
+    <a-text id="vr-alert-text" value="" position="0 0 0.01"
+      align="center" color="#ff4444" width="3"></a-text>
+  </a-entity>
+
+</a-scene>
+
+<script>
+  // ═══ STATE ═══
+  const state = {
+    total: 0, camTotal: 0, extTotal: 0,
+    rate: 0, trend: '', prediction: '',
+    zones: [], external: [], gateways: {},
+    drones: 0, aircraft: 0, weather: null,
+    alerts: []
+  };
+
+  // ═══ DATA FETCHING ═══
+  async function fetchAll() {
+    try {
+      const [counts, ext, pred, gw, drones, aircraft, weather] = await Promise.allSettled([
+        fetch('/api/counts').then(r => r.json()),
+        fetch('/api/external-count').then(r => r.json()),
+        fetch('/api/predictions/event').then(r => r.json()),
+        fetch('/api/lorawan/gateways').then(r => r.json()),
+        fetch('/api/meshmap/drones').then(r => r.json()).catch(() => []),
+        fetch('/api/meshmap/aircraft').then(r => r.json()).catch(() => []),
+        fetch('/api/meshmap/weather').then(r => r.json()).catch(() => null),
+      ]);
+
+      if (counts.status === 'fulfilled') {
+        state.total = counts.value.total || 0;
+        state.camTotal = counts.value.camera_total || 0;
+        state.extTotal = counts.value.external_total || 0;
+        state.zones = counts.value.zones || [];
+      }
+      if (ext.status === 'fulfilled') {
+        state.external = ext.value.sources || [];
+      }
+      if (pred.status === 'fulfilled') {
+        const p = pred.value;
+        state.rate = p.rate_per_min || 0;
+        state.trend = p.trend || 'stable';
+        const peak = p.predicted_peak_time;
+        state.prediction = peak ? `Peak ~${p.predicted_peak || '?'} at ${new Date(peak * 1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}` : '';
+      }
+      if (gw.status === 'fulfilled') {
+        state.gateways = gw.value || {};
+      }
+      if (drones.status === 'fulfilled') {
+        const d = drones.value;
+        state.drones = Array.isArray(d) ? d.length : (d.count || 0);
+      }
+      if (aircraft.status === 'fulfilled') {
+        const a = aircraft.value;
+        state.aircraft = Array.isArray(a) ? a.length : (a.count || 0);
+      }
+      if (weather.status === 'fulfilled' && weather.value) {
+        state.weather = weather.value;
+      }
+    } catch (e) {
+      console.error('Fetch error:', e);
+    }
+
+    renderFlat();
+    renderVR();
+  }
+
+  // ═══ TREND HELPERS ═══
+  function trendIcon(t) {
+    const m = { rising_fast: '↑↑', rising: '↑', stable: '→', declining: '↓', declining_fast: '↓↓' };
+    return m[t] || '→';
+  }
+  function trendColor(t) {
+    if (t.includes('rising')) return '#ffaa00';
+    if (t.includes('declining')) return '#4488ff';
+    return '#00ff88';
+  }
+  function pctColor(pct) {
+    if (pct >= 90) return '#ff4444';
+    if (pct >= 70) return '#ffaa00';
+    return '#00ff88';
+  }
+
+  // ═══ FLAT MODE RENDER ═══
+  function renderFlat() {
+    const bleTotal = state.external.filter(s => s.source_type === 'bluetooth').reduce((a,s) => a + s.count, 0);
+    const loraTotal = state.external.filter(s => s.source_type === 'lorawan').reduce((a,s) => a + s.count, 0);
+
+    document.getElementById('f-total').textContent = state.total;
+    document.getElementById('f-total').style.color = state.total > 100 ? '#ffaa00' : '#00ff88';
+    document.getElementById('f-rate').textContent = `${state.rate >= 0 ? '+' : ''}${state.rate.toFixed(1)}/min ${trendIcon(state.trend)}`;
+    document.getElementById('f-rate').style.color = trendColor(state.trend);
+    document.getElementById('f-trend').textContent = state.trend.replace('_', ' ');
+    document.getElementById('f-prediction').textContent = state.prediction;
+    document.getElementById('f-cam').textContent = state.camTotal;
+    document.getElementById('f-ble').textContent = bleTotal;
+    document.getElementById('f-lora').textContent = loraTotal;
+
+    // Zones
+    const zonesEl = document.getElementById('f-zones');
+    zonesEl.innerHTML = state.zones.map(z => {
+      const pct = z.capacity > 0 ? Math.round(z.count / z.capacity * 100) : 0;
+      return `<div class="flat-card">
+        <h3>${z.name}</h3>
+        <div style="display:flex;align-items:baseline;gap:0.5rem">
+          <span style="font-size:2rem;font-weight:700;color:${pctColor(pct)}">${z.count}</span>
+          <span class="dim">/ ${z.capacity} (${pct}%)</span>
+        </div>
+        <div class="zone-bar"><div class="zone-bar-fill" style="width:${Math.min(pct,100)}%;background:${pctColor(pct)}"></div></div>
+      </div>`;
+    }).join('');
+
+    // Gateway
+    const gwKeys = Object.keys(state.gateways);
+    document.getElementById('f-gw').innerHTML = gwKeys.length === 0 ? '<span class="dim">No gateways</span>' :
+      gwKeys.map(k => {
+        const g = state.gateways[k];
+        const temp = g.temp || 0;
+        const tc = temp > 60 ? '#ff4444' : temp > 45 ? '#ffaa00' : '#00ff88';
+        return `<div style="margin-bottom:0.5rem">
+          <strong>${g.name || k}</strong> ${g.online ? '🟢' : '🔴'}<br>
+          <span style="color:${tc};font-size:1.5rem;font-weight:700">${temp.toFixed(1)}°C</span>
+          <span class="dim"> | ${g.uplink_count || 0} uplinks | ack:${g.ackr || 0}%</span>
+        </div>`;
+      }).join('');
+
+    // Mesh-mapper
+    const droneAlert = state.drones > 0;
+    document.getElementById('f-mesh').innerHTML = `
+      <div style="margin-bottom:0.5rem;${droneAlert ? 'color:#ff4444;font-weight:700' : ''}">
+        🛩️ Drones: ${state.drones > 0 ? `⚠️ ${state.drones} DETECTED` : '0 — clear'}
+      </div>
+      <div>✈️ Aircraft overhead: ${state.aircraft}</div>
+      ${state.weather ? `<div>🌤️ ${state.weather.temperature || '?'}°C, ${state.weather.conditions || state.weather.description || '?'}</div>` : ''}
+    `;
+
+    // External sources
+    document.getElementById('f-ext').innerHTML = state.external.length === 0 ? '<span class="dim">None</span>' :
+      state.external.map(s => {
+        const meta = s.metadata || {};
+        const icon = s.source_type === 'bluetooth' ? '📡' : s.source_type === 'lorawan' ? '📻' : '🔌';
+        const age = Math.floor(Date.now()/1000) - s.timestamp;
+        const ageStr = age < 60 ? `${age}s ago` : `${Math.floor(age/60)}m ago`;
+        return `<div style="margin-bottom:0.4rem">
+          ${icon} <strong>${s.source_id}</strong>: ${s.count} people
+          <span class="dim">(${meta.bt_devices || 0} devices, ${ageStr})</span>
+          ${s.stale ? '<span style="color:#ff4444"> STALE</span>' : ''}
+        </div>`;
+      }).join('');
+
+    // Alert banner
+    const alertEl = document.getElementById('flat-alert');
+    const critZones = state.zones.filter(z => z.capacity > 0 && z.count / z.capacity >= 0.9);
+    if (critZones.length > 0 || state.drones > 0) {
+      alertEl.classList.add('active');
+      let msgs = [];
+      if (critZones.length) msgs.push(`⚠️ ${critZones.length} zone(s) at critical capacity`);
+      if (state.drones > 0) msgs.push(`🛩️ ${state.drones} DRONE(S) DETECTED`);
+      alertEl.textContent = msgs.join(' | ');
+    } else {
+      alertEl.classList.remove('active');
+    }
+  }
+
+  // ═══ VR MODE RENDER ═══
+  function renderVR() {
+    const scene = document.getElementById('vr-scene');
+    if (!scene) return;
+
+    // Main stats
+    const vrTotal = document.getElementById('vr-total');
+    if (vrTotal) vrTotal.setAttribute('value', String(state.total));
+
+    const vrRate = document.getElementById('vr-rate-text');
+    if (vrRate) {
+      vrRate.setAttribute('value', `${state.rate >= 0 ? '+' : ''}${state.rate.toFixed(1)}/min ${trendIcon(state.trend)}`);
+      vrRate.setAttribute('color', trendColor(state.trend));
+    }
+
+    const vrPred = document.getElementById('vr-pred-text');
+    if (vrPred) vrPred.setAttribute('value', state.prediction || 'Calculating...');
+
+    const bleTotal = state.external.filter(s => s.source_type === 'bluetooth').reduce((a,s) => a + s.count, 0);
+    const loraTotal = state.external.filter(s => s.source_type === 'lorawan').reduce((a,s) => a + s.count, 0);
+    const vrSrc = document.getElementById('vr-sources');
+    if (vrSrc) vrSrc.setAttribute('value', `Cam:${state.camTotal} | BLE:${bleTotal} | LoRa:${loraTotal}`);
+
+    // Zone panels (left arc)
+    const zonesContainer = document.getElementById('vr-zones');
+    if (zonesContainer) {
+      // Clear old zone panels
+      while (zonesContainer.firstChild) zonesContainer.removeChild(zonesContainer.firstChild);
+
+      state.zones.forEach((z, i) => {
+        const angle = -55 + (i * 18); // Arc from -55° to right
+        const rad = angle * Math.PI / 180;
+        const dist = 2.5;
+        const x = Math.sin(rad) * dist;
+        const zPos = -Math.cos(rad) * dist;
+
+        const pct = z.capacity > 0 ? Math.round(z.count / z.capacity * 100) : 0;
+        const col = pctColor(pct);
+
+        const panel = document.createElement('a-entity');
+        panel.setAttribute('position', `${x} 1.5 ${zPos}`);
+        panel.setAttribute('rotation', `0 ${-angle} 0`);
+
+        panel.innerHTML = `
+          <a-plane width="0.9" height="0.6"
+            material="color: #141428; opacity: 0.75; transparent: true; side: double"></a-plane>
+          <a-text value="${z.name}" position="0 0.18 0.01"
+            align="center" color="#7070a0" width="1.2"></a-text>
+          <a-text value="${z.count}" position="-0.15 -0.02 0.01"
+            align="center" color="${col}" width="2.5" font="mozillavr"></a-text>
+          <a-text value="/${z.capacity}" position="0.25 -0.05 0.01"
+            align="center" color="#7070a0" width="1.2"></a-text>
+          <a-text value="${pct}%" position="0 -0.2 0.01"
+            align="center" color="${col}" width="1.5"></a-text>
+        `;
+        zonesContainer.appendChild(panel);
+      });
+    }
+
+    // LoRa panel
+    const gwKeys = Object.keys(state.gateways);
+    const vrGw = document.getElementById('vr-gw-text');
+    if (vrGw && gwKeys.length > 0) {
+      const g = state.gateways[gwKeys[0]];
+      vrGw.setAttribute('value',
+        `${g.name || gwKeys[0]}\n${(g.temp||0).toFixed(1)}°C\n${g.uplink_count||0} uplinks\nack: ${g.ackr||0}%`
+      );
+    }
+
+    // Mesh panel
+    const vrMesh = document.getElementById('vr-mesh-text');
+    if (vrMesh) {
+      const droneAlert = state.drones > 0;
+      let txt = `Drones: ${droneAlert ? state.drones + ' DETECTED!' : '0 clear'}\nAircraft: ${state.aircraft}`;
+      if (state.weather) txt += `\n${state.weather.temperature || '?'}°C`;
+      vrMesh.setAttribute('value', txt);
+      if (droneAlert) vrMesh.setAttribute('color', '#ff4444');
+    }
+
+    // Alert
+    const vrAlert = document.getElementById('vr-alert');
+    const vrAlertText = document.getElementById('vr-alert-text');
+    const critZones = state.zones.filter(z => z.capacity > 0 && z.count / z.capacity >= 0.9);
+    if (critZones.length > 0 || state.drones > 0) {
+      vrAlert.setAttribute('visible', 'true');
+      let msg = [];
+      if (critZones.length) msg.push(`${critZones.length} ZONE(S) CRITICAL`);
+      if (state.drones > 0) msg.push(`${state.drones} DRONE(S) DETECTED`);
+      vrAlertText.setAttribute('value', msg.join(' | '));
+    } else {
+      vrAlert.setAttribute('visible', 'false');
+    }
+  }
+
+  // ═══ VR MODE TOGGLE ═══
+  function enterVR() {
+    const scene = document.getElementById('vr-scene');
+    if (scene && scene.enterVR) {
+      scene.enterVR();
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const scene = document.getElementById('vr-scene');
+
+    // Check WebXR support
+    if (navigator.xr) {
+      navigator.xr.isSessionSupported('immersive-vr').then(supported => {
+        if (supported) {
+          document.getElementById('vr-btn').style.display = 'block';
+        }
+      });
+    }
+
+    // VR mode events
+    scene.addEventListener('enter-vr', () => {
+      document.getElementById('flat-overlay').classList.add('hidden');
+    });
+    scene.addEventListener('exit-vr', () => {
+      document.getElementById('flat-overlay').classList.remove('hidden');
+    });
+
+    // Initial fetch + interval
+    fetchAll();
+    setInterval(fetchAll, 5000);
+  });
+</script>
+</body>
+</html>
