@@ -222,6 +222,18 @@
       color: var(--blue);
     }
 
+    .flow-vector {
+      display: inline-block;
+      width: 24px; height: 24px;
+      position: relative;
+    }
+    .flow-vector svg { width: 24px; height: 24px; }
+    .flow-magnitude {
+      font-size: 0.7rem;
+      color: var(--blue);
+      margin-left: 0.25rem;
+    }
+
     .alert-badge {
       display: inline-block;
       padding: 0.2rem 0.6rem;
@@ -362,6 +374,18 @@
       return map[label] || '';
     }
 
+    function flowSvg(flow) {
+      if (!flow || !flow.direction_x && !flow.direction_y) {
+        return '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="#7070a0"/></svg>';
+      }
+      const dx = flow.direction_x || 0;
+      const dy = flow.direction_y || 0;
+      const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+      const mag = Math.min(flow.magnitude || 0, 10);
+      const len = 4 + (mag / 10) * 6; // arrow length 4-10
+      return `<svg viewBox="0 0 24 24"><g transform="translate(12,12) rotate(${angle})"><line x1="${-len}" y1="0" x2="${len}" y2="0" stroke="#4488ff" stroke-width="2"/><polyline points="${len-3},-3 ${len},0 ${len-3},3" fill="none" stroke="#4488ff" stroke-width="2" stroke-linejoin="round"/></g></svg>`;
+    }
+
     function trendArrow(pct) {
       if (pct >= 90) return '<span style="color:var(--red)">▲</span>';
       if (pct >= 70) return '<span style="color:var(--amber)">▲</span>';
@@ -408,8 +432,9 @@
               <div class="cap-bar-fill" style="width: ${Math.min(pct, 100)}%"></div>
             </div>
             <div class="flow-row">
-              <span class="flow-arrow">${flowArrow}</span>
+              <span class="flow-vector">${flowSvg(flow)}</span>
               <span>${flowText}</span>
+              <span class="flow-magnitude">${flow.magnitude > 1 ? flow.magnitude.toFixed(1) + ' px/f' : ''}</span>
               <span style="margin-left:auto; font-size:0.8rem; color: var(--text-dim)">${pct}%</span>
             </div>
             ${alertBadge}
