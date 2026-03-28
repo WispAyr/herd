@@ -17,6 +17,7 @@ import heatmapRouter from './routes/heatmap';
 import gatesRouter from './routes/gates';
 import occupancyRouter from './routes/occupancy';
 import externalRouter from './routes/external';
+import lorawanRouter from './routes/lorawan';
 
 const PORT = parseInt(process.env.PORT || '3070', 10);
 
@@ -44,6 +45,7 @@ async function main() {
   app.use('/api/gates', gatesRouter);
   app.use('/api/v1', occupancyRouter);
   app.use('/api/external-count', externalRouter);
+  app.use('/api/lorawan', lorawanRouter);
 
   // Per-instance dashboard
   app.get('/', (_req, res) => {
