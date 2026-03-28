@@ -56,7 +56,6 @@
       border-radius: 50%;
       background: var(--text-dim);
       transition: background 0.3s;
-      margin-left: auto;
     }
     .status-dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green); }
     .status-dot.error { background: var(--red); }
@@ -65,6 +64,24 @@
       font-size: 0.8rem;
       color: var(--text-dim);
     }
+
+    nav {
+      margin-left: auto;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+    nav a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 0.8rem;
+      transition: color 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    nav a:hover { color: var(--green); }
+    nav a.active { color: var(--green); }
 
     /* Alert Banner */
     #alert-banner {
@@ -100,7 +117,8 @@
     }
 
     .stat-card {
-      background: var(--bg2);
+      background: rgba(255,255,255,0.03);
+      backdrop-filter: blur(10px);
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 1rem 1.5rem;
@@ -129,6 +147,37 @@
       margin-top: 0.25rem;
     }
 
+    /* Source breakdown bar */
+    .source-breakdown {
+      background: rgba(255,255,255,0.03);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .source-breakdown .sb-title {
+      font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase;
+      letter-spacing: 0.08em; margin-bottom: 0.75rem;
+    }
+    .sb-bar-bg {
+      height: 12px; background: var(--bg3); border-radius: 6px; overflow: hidden;
+      display: flex; margin-bottom: 0.5rem;
+    }
+    .sb-bar-seg {
+      height: 100%; transition: width 0.5s;
+    }
+    .sb-legend {
+      display: flex; gap: 1.5rem; flex-wrap: wrap;
+    }
+    .sb-legend-item {
+      display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem;
+    }
+    .sb-legend-dot {
+      width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0;
+    }
+    .sb-legend-val { font-weight: 700; }
+
     /* Zones grid */
     .zones-grid {
       display: grid;
@@ -137,7 +186,8 @@
     }
 
     .zone-card {
-      background: var(--bg2);
+      background: rgba(255,255,255,0.03);
+      backdrop-filter: blur(10px);
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 1.25rem;
@@ -257,7 +307,8 @@
       display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem;
     }
     .gate-card {
-      background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 1rem;
+      background: rgba(255,255,255,0.03); backdrop-filter: blur(10px);
+      border: 1px solid var(--border); border-radius: 10px; padding: 1rem;
     }
     .gate-name { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.75rem; }
     .gate-counts { display: flex; gap: 1rem; }
@@ -267,6 +318,25 @@
     .gate-count-value.entries { color: var(--green); }
     .gate-count-value.exits { color: var(--amber); }
     .gate-count-value.net { color: var(--blue); }
+
+    /* LoRa Gateway Mini */
+    .lora-section { margin-top: 1.5rem; }
+    .lora-mini-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem;
+    }
+    .lora-mini-card {
+      background: rgba(255,255,255,0.03); backdrop-filter: blur(10px);
+      border: 1px solid var(--border); border-radius: 10px; padding: 1rem;
+    }
+    .lora-mini-top { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .lora-mini-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+    }
+    .lora-mini-dot.online { background: var(--green); box-shadow: 0 0 5px var(--green); }
+    .lora-mini-dot.offline { background: var(--red); }
+    .lora-mini-name { font-size: 0.9rem; font-weight: 600; }
+    .lora-mini-stats { display: flex; gap: 1rem; font-size: 0.75rem; color: var(--text-dim); }
+    .lora-mini-stats span { display: flex; align-items: center; gap: 0.3rem; }
 
     /* Empty state */
     .empty-state {
@@ -311,13 +381,14 @@
     /* Responsive */
     @media (max-width: 768px) {
       header { padding: 0.75rem 1rem; flex-wrap: wrap; gap: 0.5rem; }
-      header nav { width: 100%; justify-content: center; margin-left: 0; }
+      nav { width: 100%; justify-content: center; margin-left: 0; }
       main { padding: 1rem; }
       .stats-bar { gap: 0.5rem; }
       .stat-card { min-width: 100px; padding: 0.75rem 1rem; }
       .stat-card .value { font-size: 1.5rem; }
       .zones-grid { grid-template-columns: 1fr; }
       .zone-count { font-size: 2rem; }
+      .sb-legend { gap: 0.75rem; }
     }
     @media (max-width: 480px) {
       .stats-bar { flex-direction: column; }
@@ -329,24 +400,24 @@
   <header>
     <div class="logo">
       <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <!-- Bull silhouette icon -->
         <circle cx="16" cy="10" r="5" fill="currentColor" opacity="0.9"/>
         <ellipse cx="16" cy="22" rx="8" ry="5" fill="currentColor" opacity="0.7"/>
         <ellipse cx="8" cy="22" rx="3" ry="4" fill="currentColor" opacity="0.5"/>
         <ellipse cx="24" cy="22" rx="3" ry="4" fill="currentColor" opacity="0.5"/>
-        <!-- Horns -->
         <path d="M11 8 Q6 4 5 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
         <path d="M21 8 Q26 4 27 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
       </svg>
       HERD
     </div>
-    <span class="status-label" id="status-label">Connecting…</span>
+    <span class="status-label" id="status-label">Connecting...</span>
     <div class="status-dot" id="status-dot"></div>
-    <nav style="margin-left:auto;display:flex;gap:1rem">
-      <a href="/analytics" style="color:var(--text-dim);text-decoration:none;font-size:0.8rem">Analytics</a>
-      <a href="/heatmap" style="color:var(--text-dim);text-decoration:none;font-size:0.8rem">Heatmap</a>
-      <a href="/event" style="color:var(--text-dim);text-decoration:none;font-size:0.8rem">Event</a>
-      <a href="/mobile" style="color:var(--text-dim);text-decoration:none;font-size:0.8rem">Mobile</a>
+    <nav>
+      <a href="/" class="active">Dashboard</a>
+      <a href="/analytics">Analytics</a>
+      <a href="/lorawan">LoRaWAN</a>
+      <a href="/event">Event</a>
+      <a href="/heatmap">Heatmap</a>
+      <a href="/mobile">Mobile</a>
     </nav>
   </header>
 
@@ -356,29 +427,41 @@
     <div class="stats-bar">
       <div class="stat-card">
         <div class="label">Total Headcount</div>
-        <div class="value" id="total-count">—</div>
-        <div class="sublabel">across all zones</div>
+        <div class="value" id="total-count">--</div>
+        <div class="sublabel">across all sources</div>
       </div>
       <div class="stat-card">
-        <div class="label">Active Zones</div>
-        <div class="value" id="zone-count">—</div>
-        <div class="sublabel">monitored areas</div>
+        <div class="label">📹 Camera</div>
+        <div class="value" id="camera-count">--</div>
+        <div class="sublabel" id="camera-sublabel">zone detections</div>
       </div>
       <div class="stat-card">
-        <div class="label">BLE Estimate</div>
-        <div class="value" id="ble-count" style="color: var(--blue)">—</div>
-        <div class="sublabel" id="ble-sublabel">bluetooth sources</div>
+        <div class="label">📡 BLE / WiFi</div>
+        <div class="value" id="ble-count" style="color: var(--blue)">--</div>
+        <div class="sublabel" id="ble-sublabel">external sources</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">📻 LoRaWAN</div>
+        <div class="value" id="lora-count" style="color: var(--amber)">--</div>
+        <div class="sublabel" id="lora-sublabel">bridge devices</div>
       </div>
       <div class="stat-card">
         <div class="label">Active Alerts</div>
-        <div class="value" id="alert-count" style="color: var(--text-dim)">—</div>
+        <div class="value" id="alert-count" style="color: var(--text-dim)">--</div>
         <div class="sublabel">capacity warnings</div>
       </div>
       <div class="stat-card">
         <div class="label">Last Update</div>
-        <div class="value" style="font-size: 1.2rem; color: var(--text-dim)" id="last-ts">—</div>
+        <div class="value" style="font-size: 1.2rem; color: var(--text-dim)" id="last-ts">--</div>
         <div class="sublabel">real-time via WebSocket</div>
       </div>
+    </div>
+
+    <!-- Source Breakdown -->
+    <div class="source-breakdown" id="source-breakdown" style="display:none">
+      <div class="sb-title">Source Contribution</div>
+      <div class="sb-bar-bg" id="sb-bar"></div>
+      <div class="sb-legend" id="sb-legend"></div>
     </div>
 
     <div class="section-header">
@@ -405,23 +488,31 @@
       </div>
       <div class="zones-grid" id="external-grid"></div>
     </div>
+
+    <!-- LoRa Gateway Status -->
+    <div class="lora-section" id="lora-section" style="display:none">
+      <div class="section-header">
+        <span class="section-title">📻 LoRaWAN Gateways</span>
+        <a href="/lorawan" style="font-size:0.75rem;color:var(--blue);text-decoration:none">View full dashboard →</a>
+      </div>
+      <div class="lora-mini-grid" id="lora-grid"></div>
+    </div>
   </main>
 
   <script>
     const state = {
       zones: {},
-      alerts: {}
+      alerts: {},
+      cameraTotal: 0,
+      bleTotal: 0,
+      loraDevices: 0,
+      loraUplinks: 0
     };
 
     function flowLabel(label) {
       const map = {
-        'moving-right': '→',
-        'moving-left': '←',
-        'moving-up': '↑',
-        'moving-down': '↓',
-        'still': '·',
-        'mixed': '↕',
-        'none': ''
+        'moving-right': '→', 'moving-left': '←', 'moving-up': '↑',
+        'moving-down': '↓', 'still': '·', 'mixed': '↕', 'none': ''
       };
       return map[label] || '';
     }
@@ -434,7 +525,7 @@
       const dy = flow.direction_y || 0;
       const angle = Math.atan2(dy, dx) * (180 / Math.PI);
       const mag = Math.min(flow.magnitude || 0, 10);
-      const len = 4 + (mag / 10) * 6; // arrow length 4-10
+      const len = 4 + (mag / 10) * 6;
       return `<svg viewBox="0 0 24 24"><g transform="translate(12,12) rotate(${angle})"><line x1="${-len}" y1="0" x2="${len}" y2="0" stroke="#4488ff" stroke-width="2"/><polyline points="${len-3},-3 ${len},0 ${len-3},3" fill="none" stroke="#4488ff" stroke-width="2" stroke-linejoin="round"/></g></svg>`;
     }
 
@@ -442,6 +533,34 @@
       if (pct >= 90) return '<span style="color:var(--red)">▲</span>';
       if (pct >= 70) return '<span style="color:var(--amber)">▲</span>';
       return '<span style="color:var(--green)">▼</span>';
+    }
+
+    function renderSourceBreakdown() {
+      const cam = state.cameraTotal || 0;
+      const ble = state.bleTotal || 0;
+      const total = cam + ble;
+      if (total === 0) {
+        document.getElementById('source-breakdown').style.display = 'none';
+        return;
+      }
+      document.getElementById('source-breakdown').style.display = 'block';
+      const camPct = (cam / total * 100).toFixed(1);
+      const blePct = (ble / total * 100).toFixed(1);
+
+      document.getElementById('sb-bar').innerHTML = `
+        <div class="sb-bar-seg" style="width:${camPct}%;background:var(--green)"></div>
+        <div class="sb-bar-seg" style="width:${blePct}%;background:var(--blue)"></div>
+      `;
+      document.getElementById('sb-legend').innerHTML = `
+        <div class="sb-legend-item">
+          <div class="sb-legend-dot" style="background:var(--green)"></div>
+          📹 Camera <span class="sb-legend-val">${cam}</span> (${camPct}%)
+        </div>
+        <div class="sb-legend-item">
+          <div class="sb-legend-dot" style="background:var(--blue)"></div>
+          📡 BLE/WiFi <span class="sb-legend-val">${ble}</span> (${blePct}%)
+        </div>
+      `;
     }
 
     function renderZones() {
@@ -476,7 +595,7 @@
             <div class="zone-name">${z.name}</div>
             <div class="zone-camera">${z.camera_id || ''}</div>
             <div class="zone-count-row">
-              <span class="zone-count">${z.count ?? '—'}</span>
+              <span class="zone-count">${z.count ?? '--'}</span>
               <span class="zone-capacity">/ ${z.capacity}</span>
               <span class="trend-arrow">${trendArrow(pct)}</span>
             </div>
@@ -498,8 +617,11 @@
       }).join('');
 
       // Update stats
-      document.getElementById('total-count').textContent = totalCount;
-      document.getElementById('zone-count').textContent = keys.length;
+      state.cameraTotal = totalCount;
+      document.getElementById('camera-count').textContent = totalCount;
+      document.getElementById('camera-sublabel').textContent = keys.length + ' zone' + (keys.length > 1 ? 's' : '');
+      document.getElementById('total-count').textContent = totalCount + state.bleTotal;
+      document.getElementById('zone-count');
       const alertEl = document.getElementById('alert-count');
       alertEl.textContent = alertCount;
       alertEl.style.color = alertCount > 0 ? 'var(--red)' : 'var(--text-dim)';
@@ -517,6 +639,8 @@
       } else {
         banner.style.display = 'none';
       }
+
+      renderSourceBreakdown();
     }
 
     function connect() {
@@ -533,7 +657,7 @@
 
       ws.onclose = () => {
         dot.className = 'status-dot error';
-        label.textContent = 'Reconnecting…';
+        label.textContent = 'Reconnecting...';
         setTimeout(connect, 3000);
       };
 
@@ -621,7 +745,6 @@
         `).join('');
       } catch {}
     }
-    // Refresh gates every 10s
     setInterval(loadGates, 10000);
 
     // ── External Sources (BLE/WiFi) ──
@@ -636,20 +759,22 @@
 
         if (!data.sources || data.sources.length === 0) {
           section.style.display = 'none';
-          bleCount.textContent = '—';
+          bleCount.textContent = '--';
           bleSub.textContent = 'no sources';
+          state.bleTotal = 0;
+          renderSourceBreakdown();
           return;
         }
 
         section.style.display = 'block';
+        state.bleTotal = data.total || 0;
         bleCount.textContent = data.total;
         bleCount.style.color = data.total > 50 ? 'var(--amber)' : 'var(--blue)';
         bleSub.textContent = `${data.sources.length} source${data.sources.length > 1 ? 's' : ''}`;
 
-        // Also add to total count
-        const totalEl = document.getElementById('total-count');
-        const cameraTotal = parseInt(totalEl.textContent) || 0;
-        // total-count already includes external from API, no need to add
+        // Update total
+        document.getElementById('total-count').textContent = state.cameraTotal + state.bleTotal;
+        renderSourceBreakdown();
 
         grid.innerHTML = data.sources.map(s => {
           const meta = s.metadata || {};
@@ -682,8 +807,65 @@
     }
 
     setInterval(loadExternal, 10000);
-    // Initial load after page ready
     setTimeout(loadExternal, 2000);
+
+    // ── LoRaWAN Gateway Status ──
+    async function loadLoraGateways() {
+      try {
+        const [gwRes, healthRes] = await Promise.all([
+          fetch('/api/lorawan/gateways'),
+          fetch('/api/lorawan/health')
+        ]);
+        const gwData = await gwRes.json();
+        const healthData = await healthRes.json();
+        const section = document.getElementById('lora-section');
+        const grid = document.getElementById('lora-grid');
+        const entries = Object.entries(gwData);
+
+        // Update LoRa stats
+        const loraEl = document.getElementById('lora-count');
+        const loraSub = document.getElementById('lora-sublabel');
+        const stats = healthData.stats || {};
+        loraEl.textContent = healthData.devices ?? 0;
+        loraEl.style.color = healthData.ok ? 'var(--amber)' : 'var(--red)';
+        loraSub.textContent = (stats.uplinks || 0) + ' uplinks';
+
+        if (entries.length === 0) {
+          section.style.display = 'none';
+          return;
+        }
+
+        section.style.display = 'block';
+        grid.innerHTML = entries.map(([id, gw]) => {
+          const online = gw.online !== false;
+          const temp = gw.temp;
+          const hasTemp = temp != null && temp > 0;
+
+          return `
+            <div class="lora-mini-card">
+              <div class="lora-mini-top">
+                <div class="lora-mini-dot ${online ? 'online' : 'offline'}"></div>
+                <span class="lora-mini-name">📻 ${gw.name || id}</span>
+              </div>
+              <div class="lora-mini-stats">
+                ${hasTemp ? `<span>🌡️ ${temp.toFixed(1)}°C</span>` : ''}
+                <span>↑ ${gw.uplink_count || 0} uplinks</span>
+                <span>RX ${gw.rxok || 0}</span>
+                <span>TX ${gw.txok || 0}</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        // LoRa not available - hide section
+        document.getElementById('lora-section').style.display = 'none';
+        document.getElementById('lora-count').textContent = '--';
+        document.getElementById('lora-sublabel').textContent = 'unavailable';
+      }
+    }
+
+    setInterval(loadLoraGateways, 15000);
+    setTimeout(loadLoraGateways, 2500);
 
     connect();
   </script>

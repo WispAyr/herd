@@ -21,8 +21,9 @@
     .logo { display: flex; align-items: center; gap: 0.5rem; font-size: 1.5rem; font-weight: 700; color: var(--green); letter-spacing: 0.05em; }
     .logo svg { width: 32px; height: 32px; }
     .nav-links { margin-left: auto; display: flex; gap: 1rem; }
-    .nav-links a { color: var(--text-dim); text-decoration: none; font-size: 0.8rem; }
+    .nav-links a { color: var(--text-dim); text-decoration: none; font-size: 0.8rem; transition: color 0.2s; }
     .nav-links a:hover { color: var(--green); }
+    .nav-links a.active { color: var(--green); }
 
     main { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }
 
@@ -41,7 +42,8 @@
 
     .peak-stats { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
     .peak-card {
-      background: var(--bg2); border: 1px solid var(--border); border-radius: 8px;
+      background: rgba(255,255,255,0.03); backdrop-filter: blur(10px);
+      border: 1px solid var(--border); border-radius: 8px;
       padding: 1rem 1.25rem; flex: 1; min-width: 150px;
     }
     .peak-card .label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem; }
@@ -49,16 +51,38 @@
     .peak-card .sub { font-size: 0.7rem; color: var(--text-dim); margin-top: 0.2rem; }
 
     .chart-container {
-      background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+      background: rgba(255,255,255,0.03); backdrop-filter: blur(10px);
+      border: 1px solid var(--border); border-radius: 10px;
       padding: 1.25rem; margin-bottom: 1.5rem;
     }
     #main-chart { width: 100%; height: 300px; }
 
     .flow-chart-container {
-      background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+      background: rgba(255,255,255,0.03); backdrop-filter: blur(10px);
+      border: 1px solid var(--border); border-radius: 10px;
       padding: 1.25rem; margin-bottom: 1.5rem;
     }
     #flow-chart { width: 100%; height: 200px; }
+
+    /* External source charts */
+    .ext-section { margin-top: 2rem; }
+    .ext-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .ext-card {
+      background: rgba(255,255,255,0.03); backdrop-filter: blur(10px);
+      border: 1px solid var(--border); border-radius: 10px; padding: 1rem;
+    }
+    .ext-card-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .ext-card-name { font-size: 0.9rem; font-weight: 600; }
+    .ext-card-type { font-size: 0.7rem; color: var(--text-dim); }
+    .ext-card-value { font-size: 2.2rem; font-weight: 700; color: var(--blue); margin-bottom: 0.5rem; }
+    .ext-card-meta { display: flex; gap: 1rem; font-size: 0.72rem; color: var(--text-dim); flex-wrap: wrap; }
+    .ext-card-status { font-size: 0.7rem; margin-top: 0.3rem; }
+    .ext-chart-container {
+      background: rgba(255,255,255,0.03); backdrop-filter: blur(10px);
+      border: 1px solid var(--border); border-radius: 10px;
+      padding: 1.25rem; margin-bottom: 1.5rem;
+    }
+    #ext-chart { width: 100%; height: 200px; }
 
     @media (max-width: 768px) {
       header { padding: 0.75rem 1rem; flex-wrap: wrap; }
@@ -69,6 +93,8 @@
       .controls { gap: 0.5rem; }
       #main-chart { height: 200px; }
       #flow-chart { height: 150px; }
+      #ext-chart { height: 150px; }
+      .ext-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -88,6 +114,8 @@
     <span style="color:var(--text-dim); font-size:0.85rem">Analytics</span>
     <div class="nav-links">
       <a href="/">Dashboard</a>
+      <a href="/analytics" class="active">Analytics</a>
+      <a href="/lorawan">LoRaWAN</a>
       <a href="/event">Event</a>
       <a href="/heatmap">Heatmap</a>
       <a href="/mobile">Mobile</a>
@@ -130,12 +158,24 @@
     <div class="flow-chart-container">
       <canvas id="flow-chart"></canvas>
     </div>
+
+    <!-- External Sources Section -->
+    <div class="ext-section" id="ext-section" style="display:none">
+      <div class="section-title">📡 External Sources (BLE / WiFi)</div>
+      <div class="ext-grid" id="ext-grid"></div>
+
+      <div class="section-title">External Source Totals Over Time</div>
+      <div class="ext-chart-container">
+        <canvas id="ext-chart"></canvas>
+      </div>
+    </div>
   </main>
 
   <script>
     // Minimal canvas chart renderer — no external libs
     let currentZone = '';
     let currentPeriod = '1h';
+    let extHistory = [];
 
     // Load zones
     async function loadZones() {
@@ -281,13 +321,78 @@
       ctx.stroke();
     }
 
+    // ── External Sources ──
+    async function loadExternalSources() {
+      try {
+        const res = await fetch('/api/external-count');
+        const data = await res.json();
+        const section = document.getElementById('ext-section');
+        const grid = document.getElementById('ext-grid');
+
+        if (!data.sources || data.sources.length === 0) {
+          section.style.display = 'none';
+          return;
+        }
+
+        section.style.display = 'block';
+
+        grid.innerHTML = data.sources.map(s => {
+          const meta = s.metadata || {};
+          const age = Math.floor(Date.now() / 1000) - s.timestamp;
+          const ageStr = age < 60 ? `${age}s ago` : `${Math.floor(age / 60)}m ago`;
+          const icon = s.source_type === 'bluetooth' ? '📡' : s.source_type === 'wifi' ? '📶' : '🔌';
+
+          return `
+            <div class="ext-card">
+              <div class="ext-card-header">
+                <span style="font-size:1.2rem">${icon}</span>
+                <div>
+                  <div class="ext-card-name">${s.source_id}</div>
+                  <div class="ext-card-type">${s.source_type}</div>
+                </div>
+              </div>
+              <div class="ext-card-value">${s.count}</div>
+              <div class="ext-card-meta">
+                <span>🔊 ${meta.bt_devices || 0} devices</span>
+                <span>📶 ${meta.bt_strong_signal || 0} strong</span>
+                <span>×${meta.multiplier || '?'} multiplier</span>
+              </div>
+              <div class="ext-card-status" style="color:${s.stale ? 'var(--red)' : 'var(--green)'}">
+                ${s.stale ? '⚠️ STALE' : '✅ Live'} · ${ageStr}
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        // Track history for chart
+        extHistory.push({
+          bucket: Math.floor(Date.now() / 1000),
+          total: data.total || 0
+        });
+        // Keep last 60 samples (10 min at 10s intervals)
+        if (extHistory.length > 60) extHistory.shift();
+
+        // Draw external chart
+        if (extHistory.length >= 2) {
+          drawChart('ext-chart', extHistory, 'total', '#4488ff');
+        }
+      } catch (e) {
+        console.error('External sources load failed', e);
+      }
+    }
+
     // Auto-refresh every 30s
     setInterval(() => { if (currentZone) loadData(); }, 30000);
+    setInterval(loadExternalSources, 10000);
 
     // Handle resize
-    window.addEventListener('resize', () => { if (currentZone) loadData(); });
+    window.addEventListener('resize', () => {
+      if (currentZone) loadData();
+      if (extHistory.length >= 2) drawChart('ext-chart', extHistory, 'total', '#4488ff');
+    });
 
     loadZones();
+    setTimeout(loadExternalSources, 2000);
   </script>
 </body>
 </html>

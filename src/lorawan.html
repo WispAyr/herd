@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Herd — LoRaWAN</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0f; --bg2: #12121a; --bg3: #1a1a26; --border: #2a2a3a;
+      --text: #e0e0f0; --text-dim: #7070a0;
+      --green: #00ff88; --amber: #ffaa00; --red: #ff4444; --blue: #4488ff;
+      --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+
+    /* ── Header ── */
+    header {
+      display: flex; align-items: center; gap: 1rem; padding: 1rem 1.5rem;
+      background: var(--bg2); border-bottom: 1px solid var(--border);
+    }
+    .logo { display: flex; align-items: center; gap: 0.5rem; font-size: 1.5rem; font-weight: 700; color: var(--green); letter-spacing: 0.05em; }
+    .logo svg { width: 32px; height: 32px; }
+    .page-label { font-size: 0.85rem; color: var(--text-dim); }
+    nav { margin-left: auto; display: flex; gap: 1rem; }
+    nav a { color: var(--text-dim); text-decoration: none; font-size: 0.8rem; transition: color 0.2s; }
+    nav a:hover { color: var(--green); }
+    nav a.active { color: var(--green); }
+
+    main { padding: 1.5rem; max-width: 1600px; margin: 0 auto; }
+
+    /* ── Health Banner ── */
+    .health-banner {
+      display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+    }
+    .health-card {
+      background: rgba(255,255,255,0.03); backdrop-filter: blur(10px);
+      border: 1px solid var(--border); border-radius: 10px;
+      padding: 1rem 1.5rem; flex: 1; min-width: 160px;
+    }
+    .health-card .h-label {
+      font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;
+      letter-spacing: 0.08em; margin-bottom: 0.4rem;
+    }
+    .health-card .h-value {
+      font-size: 2rem; font-weight: 700; line-height: 1; color: var(--green);
+    }
+    .health-card .h-sub { font-size: 0.72rem; color: var(--text-dim); margin-top: 0.25rem; }
+
+    /* ── Section ── */
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1rem; margin-top: 1.5rem;
+    }
+    .section-title {
+      font-size: 0.85rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--text-dim);
+    }
+
+    /* ── Gateway Cards ── */
+    .gw-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem;
+    }
+    .gw-card {
+      background: rgba(255,255,255,0.03); backdrop-filter: blur(10px);
+      border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem;
+      transition: border-color 0.3s;
+    }
+    .gw-card.offline { border-color: var(--red); opacity: 0.7; }
+    .gw-card .gw-top { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .gw-card .gw-name { font-size: 1rem; font-weight: 600; }
+    .gw-card .gw-id { font-size: 0.7rem; color: var(--text-dim); }
+    .gw-status-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .gw-status-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .gw-status-dot.offline { background: var(--red); }
+
+    /* Temperature gauge */
+    .temp-gauge { margin: 0.75rem 0; }
+    .temp-bar-bg {
+      height: 8px; background: var(--bg3); border-radius: 4px; overflow: hidden; position: relative;
+    }
+    .temp-bar-fill {
+      height: 100%; border-radius: 4px; transition: width 0.5s, background 0.3s;
+    }
+    .temp-label { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text-dim); margin-top: 0.25rem; }
+
+    /* Radio stats */
+    .radio-stats {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin-top: 0.75rem;
+    }
+    .radio-stat {
+      text-align: center; padding: 0.4rem; background: var(--bg3); border-radius: 6px;
+    }
+    .radio-stat .rs-val { font-size: 1.1rem; font-weight: 700; color: var(--blue); }
+    .radio-stat .rs-lbl { font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+
+    .gw-meta { font-size: 0.72rem; color: var(--text-dim); margin-top: 0.5rem; display: flex; gap: 1rem; flex-wrap: wrap; }
+
+    /* ── Device Table ── */
+    .device-table-wrap {
+      background: rgba(255,255,255,0.03); backdrop-filter: blur(10px);
+      border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead { background: var(--bg3); }
+    th {
+      font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;
+      letter-spacing: 0.08em; padding: 0.6rem 1rem; text-align: left; font-weight: 600;
+    }
+    td { padding: 0.6rem 1rem; font-size: 0.82rem; border-top: 1px solid var(--border); }
+    tr:hover { background: rgba(255,255,255,0.02); }
+    .rssi-bar { display: inline-block; height: 6px; border-radius: 3px; min-width: 4px; vertical-align: middle; margin-right: 0.4rem; }
+    .dev-stale { color: var(--text-dim); opacity: 0.6; }
+
+    .empty-state { text-align: center; padding: 3rem; color: var(--text-dim); }
+    .empty-state h2 { font-size: 1.1rem; margin-bottom: 0.5rem; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      header { padding: 0.75rem 1rem; flex-wrap: wrap; gap: 0.5rem; }
+      nav { width: 100%; justify-content: center; margin-left: 0; }
+      main { padding: 1rem; }
+      .health-banner { gap: 0.5rem; }
+      .health-card { min-width: 100px; padding: 0.75rem 1rem; }
+      .health-card .h-value { font-size: 1.5rem; }
+      .gw-grid { grid-template-columns: 1fr; }
+      .radio-stats { grid-template-columns: repeat(2, 1fr); }
+      .device-table-wrap { overflow-x: auto; }
+      table { min-width: 600px; }
+    }
+    @media (max-width: 480px) {
+      .health-banner { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="16" cy="10" r="5" fill="currentColor" opacity="0.9"/>
+        <ellipse cx="16" cy="22" rx="8" ry="5" fill="currentColor" opacity="0.7"/>
+        <ellipse cx="8" cy="22" rx="3" ry="4" fill="currentColor" opacity="0.5"/>
+        <ellipse cx="24" cy="22" rx="3" ry="4" fill="currentColor" opacity="0.5"/>
+        <path d="M11 8 Q6 4 5 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+        <path d="M21 8 Q26 4 27 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+      </svg>
+      HERD
+    </div>
+    <span class="page-label">LoRaWAN</span>
+    <nav>
+      <a href="/">Dashboard</a>
+      <a href="/analytics">Analytics</a>
+      <a href="/event">Event</a>
+      <a href="/lorawan" class="active">LoRaWAN</a>
+      <a href="/mobile">Mobile</a>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Bridge Health -->
+    <div class="health-banner" id="health-banner">
+      <div class="health-card">
+        <div class="h-label">Bridge Status</div>
+        <div class="h-value" id="h-status" style="font-size:1.2rem">--</div>
+        <div class="h-sub" id="h-uptime">--</div>
+      </div>
+      <div class="health-card">
+        <div class="h-label">Uplinks (24h)</div>
+        <div class="h-value" id="h-uplinks" style="color:var(--blue)">--</div>
+        <div class="h-sub">received messages</div>
+      </div>
+      <div class="health-card">
+        <div class="h-label">People Counts</div>
+        <div class="h-value" id="h-people">--</div>
+        <div class="h-sub">forwarded to Herd</div>
+      </div>
+      <div class="health-card">
+        <div class="h-label">Errors</div>
+        <div class="h-value" id="h-errors" style="color:var(--text-dim)">--</div>
+        <div class="h-sub">decode failures</div>
+      </div>
+      <div class="health-card">
+        <div class="h-label">Devices</div>
+        <div class="h-value" id="h-devices" style="color:var(--blue)">--</div>
+        <div class="h-sub">registered sensors</div>
+      </div>
+    </div>
+
+    <!-- Gateways -->
+    <div class="section-header">
+      <span class="section-title">Gateways</span>
+      <span style="font-size:0.72rem;color:var(--text-dim)" id="gw-update-ts">--</span>
+    </div>
+    <div class="gw-grid" id="gw-grid">
+      <div class="empty-state"><h2>Loading gateways...</h2></div>
+    </div>
+
+    <!-- Devices -->
+    <div class="section-header">
+      <span class="section-title">Devices</span>
+      <span style="font-size:0.72rem;color:var(--text-dim)" id="dev-count-label">--</span>
+    </div>
+    <div class="device-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Device</th>
+            <th>DEV EUI</th>
+            <th>Last Seen</th>
+            <th>RSSI</th>
+            <th>SNR</th>
+            <th>Gateway</th>
+            <th>Type</th>
+            <th>Uplinks</th>
+            <th>Last Data</th>
+          </tr>
+        </thead>
+        <tbody id="dev-tbody">
+          <tr><td colspan="9" style="text-align:center;color:var(--text-dim);padding:2rem">Loading devices...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <script>
+    function tempColor(temp) {
+      if (temp >= 70) return 'var(--red)';
+      if (temp >= 55) return 'var(--amber)';
+      return 'var(--green)';
+    }
+
+    function rssiColor(rssi) {
+      const v = Math.abs(rssi);
+      if (v <= 70) return 'var(--green)';
+      if (v <= 100) return 'var(--amber)';
+      return 'var(--red)';
+    }
+
+    function rssiWidth(rssi) {
+      const v = Math.abs(rssi);
+      return Math.max(5, Math.min(100, 100 - v)) + '%';
+    }
+
+    function timeAgo(ts) {
+      if (!ts) return '--';
+      const d = new Date(ts);
+      const secs = Math.floor((Date.now() - d.getTime()) / 1000);
+      if (secs < 60) return secs + 's ago';
+      if (secs < 3600) return Math.floor(secs / 60) + 'm ago';
+      if (secs < 86400) return Math.floor(secs / 3600) + 'h ago';
+      return Math.floor(secs / 86400) + 'd ago';
+    }
+
+    function escHtml(s) {
+      if (!s) return '';
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function formatUptime(ms) {
+      if (!ms) return '--';
+      const h = Math.floor(ms / 3600000);
+      const m = Math.floor((ms % 3600000) / 60000);
+      if (h > 24) return Math.floor(h / 24) + 'd ' + (h % 24) + 'h';
+      return h + 'h ' + m + 'm';
+    }
+
+    // ── Load Health ──
+    async function loadHealth() {
+      try {
+        const res = await fetch('/api/lorawan/health');
+        const data = await res.json();
+        const statusEl = document.getElementById('h-status');
+        if (data.ok) {
+          statusEl.textContent = 'Online';
+          statusEl.style.color = 'var(--green)';
+        } else {
+          statusEl.textContent = 'Offline';
+          statusEl.style.color = 'var(--red)';
+        }
+        document.getElementById('h-uptime').textContent = 'Uptime: ' + formatUptime(data.uptime);
+        const stats = data.stats || {};
+        document.getElementById('h-uplinks').textContent = stats.uplinks ?? '--';
+        document.getElementById('h-people').textContent = stats.people_counts ?? '--';
+        const errEl = document.getElementById('h-errors');
+        errEl.textContent = stats.errors ?? 0;
+        errEl.style.color = (stats.errors || 0) > 0 ? 'var(--red)' : 'var(--text-dim)';
+        document.getElementById('h-devices').textContent = data.devices ?? '--';
+      } catch (e) {
+        document.getElementById('h-status').textContent = 'Unreachable';
+        document.getElementById('h-status').style.color = 'var(--red)';
+      }
+    }
+
+    // ── Load Gateways ──
+    async function loadGateways() {
+      try {
+        const res = await fetch('/api/lorawan/gateways');
+        const data = await res.json();
+        const grid = document.getElementById('gw-grid');
+        const entries = Object.entries(data);
+
+        if (entries.length === 0) {
+          grid.innerHTML = '<div class="empty-state"><h2>No gateways registered</h2><p>Gateways will appear when they connect via TTN</p></div>';
+          return;
+        }
+
+        document.getElementById('gw-update-ts').textContent = new Date().toLocaleTimeString();
+
+        grid.innerHTML = entries.map(([id, gw]) => {
+          const online = gw.online !== false;
+          const temp = gw.temp;
+          const hasTemp = temp != null && temp > 0;
+          const tempPct = hasTemp ? Math.min((temp / 85) * 100, 100) : 0;
+          const ackr = gw.ackr != null ? (gw.ackr * 100).toFixed(1) : '--';
+
+          return `
+            <div class="gw-card ${online ? '' : 'offline'}">
+              <div class="gw-top">
+                <div class="gw-status-dot ${online ? 'online' : 'offline'}"></div>
+                <div>
+                  <div class="gw-name">${escHtml(gw.name || id)}</div>
+                  <div class="gw-id">${escHtml(id)}</div>
+                </div>
+              </div>
+              ${hasTemp ? `
+                <div class="temp-gauge">
+                  <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:0.25rem">
+                    🌡️ Temperature: <span style="color:${tempColor(temp)};font-weight:600">${temp.toFixed(1)}°C</span>
+                  </div>
+                  <div class="temp-bar-bg">
+                    <div class="temp-bar-fill" style="width:${tempPct}%;background:${tempColor(temp)}"></div>
+                  </div>
+                  <div class="temp-label"><span>0°C</span><span>85°C</span></div>
+                </div>
+              ` : '<div style="font-size:0.75rem;color:var(--text-dim);margin:0.5rem 0">🌡️ No temperature data</div>'}
+              <div class="radio-stats">
+                <div class="radio-stat">
+                  <div class="rs-val">${gw.uplink_count ?? 0}</div>
+                  <div class="rs-lbl">Uplinks</div>
+                </div>
+                <div class="radio-stat">
+                  <div class="rs-val">${gw.rxok ?? 0}</div>
+                  <div class="rs-lbl">RX OK</div>
+                </div>
+                <div class="radio-stat">
+                  <div class="rs-val">${gw.txok ?? 0}</div>
+                  <div class="rs-lbl">TX OK</div>
+                </div>
+                <div class="radio-stat">
+                  <div class="rs-val" style="color:${parseFloat(ackr) >= 90 ? 'var(--green)' : parseFloat(ackr) >= 50 ? 'var(--amber)' : 'var(--red)'}">${ackr}%</div>
+                  <div class="rs-lbl">ACK Rate</div>
+                </div>
+              </div>
+              <div class="gw-meta">
+                <span>Protocol: ${escHtml(gw.protocol || '--')}</span>
+                <span>IP: ${escHtml(gw.ip || '--')}</span>
+                ${gw.connected_at ? '<span>Connected: ' + timeAgo(gw.connected_at) + '</span>' : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        document.getElementById('gw-grid').innerHTML = '<div class="empty-state"><h2>Failed to load gateways</h2></div>';
+      }
+    }
+
+    // ── Load Devices ──
+    async function loadDevices() {
+      try {
+        const res = await fetch('/api/lorawan/devices');
+        const data = await res.json();
+        const tbody = document.getElementById('dev-tbody');
+        const entries = Object.entries(data);
+
+        document.getElementById('dev-count-label').textContent = entries.length + ' device' + (entries.length !== 1 ? 's' : '');
+
+        if (entries.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-dim);padding:2rem">No devices registered</td></tr>';
+          return;
+        }
+
+        // Sort by last_seen desc
+        entries.sort((a, b) => {
+          const ta = new Date(a[1].last_seen || 0).getTime();
+          const tb = new Date(b[1].last_seen || 0).getTime();
+          return tb - ta;
+        });
+
+        tbody.innerHTML = entries.map(([id, dev]) => {
+          const age = dev.last_seen ? (Date.now() - new Date(dev.last_seen).getTime()) / 1000 : Infinity;
+          const stale = age > 3600;
+          const rssi = dev.rssi ?? -999;
+          const snr = dev.snr ?? 0;
+          const lastData = dev.last_data;
+          let dataStr = '--';
+          if (lastData && typeof lastData === 'object') {
+            if (lastData.count != null) dataStr = 'count: ' + lastData.count;
+            else dataStr = JSON.stringify(lastData).slice(0, 40);
+          }
+
+          return `
+            <tr class="${stale ? 'dev-stale' : ''}">
+              <td style="font-weight:600">${escHtml(id)}</td>
+              <td style="font-size:0.72rem;font-family:monospace">${escHtml(dev.dev_eui || '--')}</td>
+              <td>${dev.last_seen ? timeAgo(dev.last_seen) : '--'}</td>
+              <td>
+                <span class="rssi-bar" style="width:${rssiWidth(rssi)};background:${rssiColor(rssi)}"></span>
+                ${rssi > -999 ? rssi + ' dBm' : '--'}
+              </td>
+              <td style="color:${snr >= 5 ? 'var(--green)' : snr >= 0 ? 'var(--amber)' : 'var(--red)'}">${snr.toFixed(1)} dB</td>
+              <td style="font-size:0.75rem">${escHtml(dev.gateway || '--')}</td>
+              <td><span style="background:var(--bg3);padding:0.15rem 0.4rem;border-radius:3px;font-size:0.7rem">${escHtml(dev.last_type || '--')}</span></td>
+              <td>${dev.uplink_count ?? 0}</td>
+              <td style="font-size:0.75rem;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(dataStr)}</td>
+            </tr>
+          `;
+        }).join('');
+      } catch (e) {
+        document.getElementById('dev-tbody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--red);padding:2rem">Failed to load devices</td></tr>';
+      }
+    }
+
+    // ── Init ──
+    async function init() {
+      await Promise.all([loadHealth(), loadGateways(), loadDevices()]);
+    }
+
+    init();
+    setInterval(loadHealth, 15000);
+    setInterval(loadGateways, 10000);
+    setInterval(loadDevices, 10000);
+  </script>
+</body>
+</html>

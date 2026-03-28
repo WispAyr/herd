@@ -72,6 +72,11 @@ async function main() {
     res.sendFile(path.join(__dirname, 'mobile.html'));
   });
 
+  // LoRaWAN dashboard
+  app.get('/lorawan', (_req, res) => {
+    res.sendFile(path.join(__dirname, 'lorawan.html'));
+  });
+
   // Catch-all for unknown routes
   app.use((_req, res) => {
     res.status(404).json({ error: 'Not found' });
