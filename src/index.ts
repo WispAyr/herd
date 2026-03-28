@@ -4,11 +4,13 @@ import path from 'path';
 import { initDb } from './db';
 import { initWebSocket } from './ws';
 import { startCameraLoop } from './camera';
+import { startAggregator, stopAggregator } from './aggregator';
 import camerasRouter from './routes/cameras';
 import zonesRouter from './routes/zones';
 import countsRouter from './routes/counts';
 import flowRouter from './routes/flow';
 import alertsRouter from './routes/alerts';
+import eventRouter from './routes/event';
 
 const PORT = parseInt(process.env.PORT || '3070', 10);
 
@@ -30,10 +32,16 @@ async function main() {
   app.use('/api/counts', countsRouter);
   app.use('/api/flow', flowRouter);
   app.use('/api/alerts', alertsRouter);
+  app.use('/api/event', eventRouter);
 
-  // Dashboard
+  // Per-instance dashboard
   app.get('/', (_req, res) => {
     res.sendFile(path.join(__dirname, 'dashboard.html'));
+  });
+
+  // Event-wide aggregated dashboard
+  app.get('/event', (_req, res) => {
+    res.sendFile(path.join(__dirname, 'event-dashboard.html'));
   });
 
   // Catch-all for unknown routes
@@ -60,9 +68,13 @@ async function main() {
   // Start camera processing loop (2s interval)
   startCameraLoop(2000);
 
+  // Start event aggregator (only if HERD_SOURCES is set)
+  startAggregator();
+
   // Graceful shutdown
   process.on('SIGTERM', () => {
     console.log('[herd] SIGTERM received, shutting down...');
+    stopAggregator();
     server.close(() => process.exit(0));
   });
 }

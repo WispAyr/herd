@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Herd — Event Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --bg2: #12121a;
+      --bg3: #1a1a26;
+      --border: #2a2a3a;
+      --text: #e0e0f0;
+      --text-dim: #7070a0;
+      --green: #00ff88;
+      --amber: #ffaa00;
+      --red: #ff4444;
+      --blue: #4488ff;
+      --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Top Banner ───────────────────────────────────────────────── */
+    #event-banner {
+      background: var(--bg2);
+      border-bottom: 2px solid var(--green);
+      padding: 1.2rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .event-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 1.8rem;
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      color: var(--green);
+      text-shadow: 0 0 20px rgba(0,255,136,0.3);
+    }
+
+    .event-logo svg { width: 40px; height: 40px; }
+
+    .event-name-sep {
+      color: var(--border);
+      font-weight: 300;
+      font-size: 1.8rem;
+    }
+
+    #event-name-text {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.04em;
+    }
+
+    .banner-total {
+      margin-left: auto;
+      display: flex;
+      align-items: baseline;
+      gap: 0.4rem;
+    }
+
+    #banner-count {
+      font-size: 4rem;
+      font-weight: 900;
+      line-height: 1;
+      color: var(--green);
+      text-shadow: 0 0 30px rgba(0,255,136,0.4);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+      transition: color 0.3s;
+    }
+
+    #banner-count.warn { color: var(--amber); text-shadow: 0 0 30px rgba(255,170,0,0.4); }
+    #banner-count.crit { color: var(--red); text-shadow: 0 0 30px rgba(255,68,68,0.4); }
+
+    .banner-count-label {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      align-self: flex-end;
+      margin-bottom: 0.3rem;
+    }
+
+    /* Source indicators */
+    #source-indicators {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .source-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.78rem;
+      color: var(--text-dim);
+    }
+
+    .source-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--text-dim);
+      transition: all 0.4s;
+      flex-shrink: 0;
+    }
+
+    .source-dot.online {
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse-green 2s infinite;
+    }
+
+    .source-dot.offline { background: var(--red); box-shadow: 0 0 6px var(--red); }
+
+    @keyframes pulse-green {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    /* Alert Banner */
+    #alert-flash {
+      display: none;
+      padding: 0.7rem 2rem;
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: 0.04em;
+      animation: banner-pulse 1.4s infinite;
+    }
+
+    #alert-flash.crit { background: var(--red); color: #fff; }
+    #alert-flash.warn { background: var(--amber); color: #000; }
+
+    @keyframes banner-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.8; }
+    }
+
+    /* ── No sources ────────────────────────────────────────────────── */
+    #no-sources {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      color: var(--text-dim);
+    }
+
+    #no-sources h2 { font-size: 1.4rem; color: var(--text); }
+    #no-sources p { font-size: 0.9rem; }
+    #no-sources code {
+      background: var(--bg3);
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+    }
+
+    /* ── Main grid ─────────────────────────────────────────────────── */
+    #main-content {
+      flex: 1;
+      padding: 1.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      overflow: hidden;
+    }
+
+    /* Stats row */
+    .stats-row {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .stat-pill {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1.25rem;
+      flex: 1;
+      min-width: 120px;
+    }
+
+    .stat-pill .sp-label {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.3rem;
+    }
+
+    .stat-pill .sp-value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--green);
+    }
+
+    /* ── Zones by source ───────────────────────────────────────────── */
+    #zones-container {
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0;
+    }
+
+    .source-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .source-group-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .source-group-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-dim);
+    }
+
+    .source-group-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .source-group-dot.online { background: var(--green); box-shadow: 0 0 5px var(--green); }
+    .source-group-dot.offline { background: var(--red); }
+
+    .zones-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 0.85rem;
+    }
+
+    .zone-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+      transition: border-color 0.3s;
+    }
+
+    .zone-card.warning { border-color: var(--amber); }
+    .zone-card.critical {
+      border-color: var(--red);
+      box-shadow: 0 0 10px rgba(255,68,68,0.15);
+    }
+
+    .zc-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 0.2rem;
+    }
+
+    .zc-name {
+      font-size: 0.95rem;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+
+    .zc-trend {
+      font-size: 1.1rem;
+      line-height: 1;
+    }
+
+    .zc-camera {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      margin-bottom: 0.75rem;
+    }
+
+    .zc-count-row {
+      display: flex;
+      align-items: baseline;
+      gap: 0.4rem;
+      margin-bottom: 0.6rem;
+    }
+
+    .zc-count {
+      font-size: 2.8rem;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--green);
+      transition: color 0.3s;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .zone-card.warning .zc-count { color: var(--amber); }
+    .zone-card.critical .zc-count { color: var(--red); }
+
+    .zc-cap {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+    }
+
+    .cap-bar {
+      height: 5px;
+      background: var(--bg3);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 0.5rem;
+    }
+
+    .cap-bar-fill {
+      height: 100%;
+      background: var(--green);
+      border-radius: 3px;
+      transition: width 0.5s ease, background 0.3s;
+      max-width: 100%;
+    }
+
+    .zone-card.warning .cap-bar-fill { background: var(--amber); }
+    .zone-card.critical .cap-bar-fill { background: var(--red); }
+
+    .zc-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.7rem;
+      color: var(--text-dim);
+    }
+
+    .zc-alert-badge {
+      display: inline-block;
+      padding: 0.15rem 0.45rem;
+      border-radius: 3px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .zc-alert-badge.warning { background: rgba(255,170,0,0.15); color: var(--amber); border: 1px solid var(--amber); }
+    .zc-alert-badge.critical { background: rgba(255,68,68,0.15); color: var(--red); border: 1px solid var(--red); }
+
+    /* ── Flow panel ────────────────────────────────────────────────── */
+    #flow-panel {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+    }
+
+    .panel-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-dim);
+      margin-bottom: 0.75rem;
+    }
+
+    #flow-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+    }
+
+    .flow-chip {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.4rem 0.75rem;
+      font-size: 0.8rem;
+    }
+
+    .flow-direction {
+      font-size: 1.2rem;
+      color: var(--blue);
+    }
+
+    .flow-chip .flow-source {
+      color: var(--text-dim);
+      font-size: 0.7rem;
+    }
+
+    /* ── Timeline chart ────────────────────────────────────────────── */
+    #timeline-panel {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+    }
+
+    #timeline-svg {
+      width: 100%;
+      height: 80px;
+      overflow: visible;
+    }
+
+    /* ── Alert Ticker ──────────────────────────────────────────────── */
+    #alert-ticker {
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      padding: 0.6rem 2rem;
+      overflow: hidden;
+      white-space: nowrap;
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+    }
+
+    .ticker-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+      margin-right: 1rem;
+      flex-shrink: 0;
+    }
+
+    .ticker-inner {
+      overflow: hidden;
+      flex: 1;
+    }
+
+    .ticker-track {
+      display: inline-block;
+      animation: ticker-scroll 30s linear infinite;
+      white-space: nowrap;
+    }
+
+    @keyframes ticker-scroll {
+      0%   { transform: translateX(100%); }
+      100% { transform: translateX(-100%); }
+    }
+
+    .ticker-item {
+      display: inline;
+      margin-right: 3rem;
+      font-size: 0.82rem;
+    }
+
+    .ticker-item.critical { color: var(--red); }
+    .ticker-item.warning { color: var(--amber); }
+
+    .ticker-empty {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      font-style: italic;
+    }
+
+    /* ── Bottom status bar ─────────────────────────────────────────── */
+    #status-bar {
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      padding: 0.4rem 2rem;
+      display: flex;
+      gap: 2rem;
+      align-items: center;
+      font-size: 0.72rem;
+      color: var(--text-dim);
+    }
+
+    #ws-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--text-dim);
+      display: inline-block;
+      margin-right: 0.3rem;
+    }
+
+    #ws-dot.connected { background: var(--green); box-shadow: 0 0 5px var(--green); }
+    #ws-dot.error { background: var(--red); }
+
+    /* nav link */
+    .nav-link {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-decoration: none;
+      margin-left: auto;
+    }
+    .nav-link:hover { color: var(--green); }
+  </style>
+</head>
+<body>
+
+  <!-- Top banner -->
+  <div id="event-banner">
+    <div class="event-logo">
+      <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="16" cy="10" r="5" fill="currentColor" opacity="0.9"/>
+        <ellipse cx="16" cy="22" rx="8" ry="5" fill="currentColor" opacity="0.7"/>
+        <ellipse cx="8" cy="22" rx="3" ry="4" fill="currentColor" opacity="0.5"/>
+        <ellipse cx="24" cy="22" rx="3" ry="4" fill="currentColor" opacity="0.5"/>
+        <path d="M11 8 Q6 4 5 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+        <path d="M21 8 Q26 4 27 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+      </svg>
+      🐂 HERD
+    </div>
+    <span class="event-name-sep">—</span>
+    <span id="event-name-text">Live Event</span>
+
+    <div id="source-indicators"></div>
+
+    <div class="banner-total">
+      <div>
+        <div id="banner-count">—</div>
+        <div class="banner-count-label">on site</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alert flash -->
+  <div id="alert-flash"></div>
+
+  <!-- No sources configured state -->
+  <div id="no-sources" style="display:none">
+    <h2>No sources configured</h2>
+    <p>Set the <code>HERD_SOURCES</code> environment variable to enable event aggregation.</p>
+    <p>Example: <code>HERD_SOURCES=http://172.6.192.75:3050,http://10.42.42.161:3051</code></p>
+  </div>
+
+  <!-- Main content -->
+  <div id="main-content">
+    <!-- Stats row -->
+    <div class="stats-row">
+      <div class="stat-pill">
+        <div class="sp-label">Total on Site</div>
+        <div class="sp-value" id="stat-total">—</div>
+      </div>
+      <div class="stat-pill">
+        <div class="sp-label">Active Zones</div>
+        <div class="sp-value" id="stat-zones">—</div>
+      </div>
+      <div class="stat-pill">
+        <div class="sp-label">Active Alerts</div>
+        <div class="sp-value" id="stat-alerts" style="color:var(--text-dim)">—</div>
+      </div>
+      <div class="stat-pill">
+        <div class="sp-label">Sources Online</div>
+        <div class="sp-value" id="stat-sources">—</div>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div id="timeline-panel">
+      <div class="panel-title">📈 Headcount — Last 2 Hours</div>
+      <svg id="timeline-svg" viewBox="0 0 800 80" preserveAspectRatio="none">
+        <text x="400" y="45" text-anchor="middle" fill="#7070a0" font-size="12">Loading…</text>
+      </svg>
+    </div>
+
+    <!-- Zones by source -->
+    <div id="zones-container">
+      <div id="zones-body"></div>
+    </div>
+
+    <!-- Flow panel -->
+    <div id="flow-panel">
+      <div class="panel-title">🌊 Movement Patterns</div>
+      <div id="flow-list"><span style="color:var(--text-dim);font-size:0.8rem">No flow data</span></div>
+    </div>
+  </div>
+
+  <!-- Alert ticker -->
+  <div id="alert-ticker">
+    <span class="ticker-label">Alerts</span>
+    <div class="ticker-inner">
+      <span class="ticker-empty" id="ticker-empty">No active alerts</span>
+      <span class="ticker-track" id="ticker-track" style="display:none"></span>
+    </div>
+  </div>
+
+  <!-- Status bar -->
+  <div id="status-bar">
+    <span><span id="ws-dot"></span> <span id="ws-label">Connecting…</span></span>
+    <span id="last-update-label">—</span>
+    <a href="/" class="nav-link">← Per-instance dashboard</a>
+  </div>
+
+  <script>
+    // ── State ──────────────────────────────────────────────────────────────
+    const state = {
+      configured: true,
+      summary: null,
+      zones: [],
+      flow: [],
+      alerts: [],
+      timeline: []
+    };
+
+    // ── Flow label map ─────────────────────────────────────────────────────
+    const FLOW_ICONS = {
+      'moving-right': '→',
+      'moving-left': '←',
+      'moving-up': '↑',
+      'moving-down': '↓',
+      'still': '·',
+      'mixed': '↕',
+      'none': '·'
+    };
+
+    function flowIcon(label) {
+      return FLOW_ICONS[label] || label || '·';
+    }
+
+    function trendIcon(trend) {
+      if (trend === 'up') return '<span style="color:var(--amber)">▲</span>';
+      if (trend === 'down') return '<span style="color:var(--green)">▼</span>';
+      return '<span style="color:var(--text-dim)">—</span>';
+    }
+
+    // ── Render summary ─────────────────────────────────────────────────────
+    function renderSummary(summary) {
+      if (!summary) return;
+
+      document.getElementById('event-name-text').textContent = summary.event_name || 'Live Event';
+
+      const total = summary.total_count ?? 0;
+      const bannerCount = document.getElementById('banner-count');
+      bannerCount.textContent = total.toLocaleString();
+      bannerCount.className = summary.critical_count > 0 ? 'crit' : summary.warning_count > 0 ? 'warn' : '';
+
+      document.getElementById('stat-total').textContent = total.toLocaleString();
+      document.getElementById('stat-zones').textContent = summary.zone_count ?? 0;
+
+      const alertEl = document.getElementById('stat-alerts');
+      alertEl.textContent = summary.alert_count ?? 0;
+      alertEl.style.color = summary.alert_count > 0 ? 'var(--red)' : 'var(--text-dim)';
+
+      // Source indicators
+      const sources = summary.sources || [];
+      const online = sources.filter(s => s.online).length;
+      document.getElementById('stat-sources').textContent = `${online}/${sources.length}`;
+
+      const indicators = document.getElementById('source-indicators');
+      indicators.innerHTML = sources.map(s => `
+        <div class="source-indicator">
+          <div class="source-dot ${s.online ? 'online' : 'offline'}"></div>
+          <span>${s.label}</span>
+          ${!s.online && s.error ? `<span style="color:var(--red);font-size:0.7rem">(${s.error})</span>` : ''}
+        </div>
+      `).join('');
+
+      // Alert flash banner
+      const flash = document.getElementById('alert-flash');
+      if (summary.critical_count > 0) {
+        flash.style.display = 'block';
+        flash.className = 'crit';
+        flash.textContent = `⚠️ CRITICAL: ${summary.critical_count} zone(s) at critical capacity`;
+      } else if (summary.warning_count > 0) {
+        flash.style.display = 'block';
+        flash.className = 'warn';
+        flash.textContent = `⚠️ WARNING: ${summary.warning_count} zone(s) approaching capacity`;
+      } else {
+        flash.style.display = 'none';
+      }
+    }
+
+    // ── Render zones grouped by source ─────────────────────────────────────
+    function renderZones(zones) {
+      const grouped = {};
+      for (const z of zones) {
+        if (!grouped[z.source_url]) grouped[z.source_url] = { label: z.source_label, url: z.source_url, zones: [] };
+        grouped[z.source_url].zones.push(z);
+      }
+
+      const body = document.getElementById('zones-body');
+      if (Object.keys(grouped).length === 0) {
+        body.innerHTML = `<p style="color:var(--text-dim);font-size:0.85rem">No zones reporting yet…</p>`;
+        return;
+      }
+
+      // Get source online status
+      const sourceStatus = {};
+      (state.summary?.sources || []).forEach(s => { sourceStatus[s.url] = s.online; });
+
+      body.innerHTML = Object.values(grouped).map(group => {
+        const isOnline = sourceStatus[group.url] !== false;
+        const cards = group.zones.map(z => {
+          const pct = z.pct ?? 0;
+          const alertClass = z.alert_level || '';
+          const trend = trendIcon(z.trend);
+          const alertBadge = z.alert_level
+            ? `<span class="zc-alert-badge ${z.alert_level}">${z.alert_level}</span>`
+            : '';
+
+          return `
+            <div class="zone-card ${alertClass}">
+              <div class="zc-header">
+                <div class="zc-name">${escHtml(z.name)}</div>
+                <div class="zc-trend">${trend}</div>
+              </div>
+              <div class="zc-camera">${escHtml(z.camera_id || '')}</div>
+              <div class="zc-count-row">
+                <span class="zc-count">${z.count ?? '—'}</span>
+                <span class="zc-cap">/ ${z.capacity}</span>
+              </div>
+              <div class="cap-bar">
+                <div class="cap-bar-fill" style="width:${Math.min(pct, 100)}%"></div>
+              </div>
+              <div class="zc-meta">
+                <span>${pct}% capacity</span>
+                ${alertBadge}
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        return `
+          <div class="source-group">
+            <div class="source-group-header">
+              <div class="source-group-dot ${isOnline ? 'online' : 'offline'}"></div>
+              <span class="source-group-title">${escHtml(group.label)}</span>
+              <span style="font-size:0.72rem;color:var(--text-dim);margin-left:0.5rem">${group.url}</span>
+            </div>
+            <div class="zones-grid">${cards}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ── Render flow panel ──────────────────────────────────────────────────
+    function renderFlow(flows) {
+      const list = document.getElementById('flow-list');
+      if (!flows || flows.length === 0) {
+        list.innerHTML = `<span style="color:var(--text-dim);font-size:0.8rem">No flow data</span>`;
+        return;
+      }
+
+      // Only show zones with meaningful movement
+      const active = flows.filter(f => f.magnitude > 0.5 && f.dominant_label !== 'none');
+      if (active.length === 0) {
+        list.innerHTML = `<span style="color:var(--text-dim);font-size:0.8rem">· All zones still</span>`;
+        return;
+      }
+
+      list.innerHTML = active.map(f => `
+        <div class="flow-chip">
+          <span class="flow-direction">${flowIcon(f.dominant_label)}</span>
+          <span>${escHtml(f.zone_name)}</span>
+          <span class="flow-source">${escHtml(f.source_label)}</span>
+        </div>
+      `).join('');
+    }
+
+    // ── Render alert ticker ────────────────────────────────────────────────
+    function renderAlerts(alerts) {
+      const track = document.getElementById('ticker-track');
+      const empty = document.getElementById('ticker-empty');
+
+      if (!alerts || alerts.length === 0) {
+        track.style.display = 'none';
+        empty.style.display = 'inline';
+        return;
+      }
+
+      empty.style.display = 'none';
+      track.style.display = 'inline';
+      track.innerHTML = alerts.map(a => `
+        <span class="ticker-item ${a.level}">
+          ⚠ [${escHtml(a.source_label)}] ${escHtml(a.zone_name)}: ${escHtml(a.message)}
+        </span>
+      `).join('');
+    }
+
+    // ── Render timeline SVG ────────────────────────────────────────────────
+    function renderTimeline(buckets) {
+      const svg = document.getElementById('timeline-svg');
+
+      if (!buckets || buckets.length < 2) {
+        svg.innerHTML = `<text x="400" y="45" text-anchor="middle" fill="#7070a0" font-size="12">Collecting data…</text>`;
+        return;
+      }
+
+      const W = 800, H = 80, PAD = 4;
+      const maxVal = Math.max(...buckets.map(b => b.total), 1);
+      const minTs = buckets[0].bucket;
+      const maxTs = buckets[buckets.length - 1].bucket;
+      const tsRange = maxTs - minTs || 1;
+
+      const pts = buckets.map(b => {
+        const x = PAD + ((b.bucket - minTs) / tsRange) * (W - PAD * 2);
+        const y = H - PAD - ((b.total / maxVal) * (H - PAD * 2));
+        return [x, y];
+      });
+
+      const polyline = pts.map(p => p.join(',')).join(' ');
+
+      // Fill area
+      const fillPts = [
+        [pts[0][0], H - PAD],
+        ...pts,
+        [pts[pts.length - 1][0], H - PAD]
+      ].map(p => p.join(',')).join(' ');
+
+      // Labels
+      const labelY = H - 1;
+      const startLabel = new Date(minTs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const endLabel = new Date(maxTs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      svg.innerHTML = `
+        <defs>
+          <linearGradient id="tl-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#00ff88" stop-opacity="0.25"/>
+            <stop offset="100%" stop-color="#00ff88" stop-opacity="0.02"/>
+          </linearGradient>
+        </defs>
+        <polygon points="${fillPts}" fill="url(#tl-grad)"/>
+        <polyline points="${polyline}" fill="none" stroke="#00ff88" stroke-width="2" stroke-linejoin="round"/>
+        <text x="${PAD}" y="${labelY}" fill="#7070a0" font-size="9">${startLabel}</text>
+        <text x="${W - PAD}" y="${labelY}" fill="#7070a0" font-size="9" text-anchor="end">${endLabel}</text>
+        <text x="${W - PAD}" y="12" fill="#7070a0" font-size="9" text-anchor="end">${maxVal}</text>
+        <text x="${W - PAD}" y="${H - PAD - 2}" fill="#7070a0" font-size="9" text-anchor="end">0</text>
+      `;
+    }
+
+    // ── WebSocket ──────────────────────────────────────────────────────────
+    function connect() {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const ws = new WebSocket(`${proto}//${location.host}`);
+      const dot = document.getElementById('ws-dot');
+      const label = document.getElementById('ws-label');
+
+      ws.onopen = () => {
+        dot.className = 'connected';
+        label.textContent = 'Live';
+        loadInitial();
+      };
+
+      ws.onclose = () => {
+        dot.className = 'error';
+        label.textContent = 'Reconnecting…';
+        setTimeout(connect, 3000);
+      };
+
+      ws.onerror = () => {
+        dot.className = 'error';
+        label.textContent = 'Error';
+      };
+
+      ws.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === 'event-update') {
+            applyUpdate(msg);
+            updateTimestamp(msg.timestamp);
+          }
+        } catch {}
+      };
+    }
+
+    function applyUpdate(msg) {
+      if (msg.summary) state.summary = msg.summary;
+      if (msg.zones)   state.zones = msg.zones;
+      if (msg.flow)    state.flow = msg.flow;
+      if (msg.alerts)  state.alerts = msg.alerts;
+
+      renderSummary(state.summary);
+      renderZones(state.zones);
+      renderFlow(state.flow);
+      renderAlerts(state.alerts);
+    }
+
+    function updateTimestamp(ts) {
+      if (!ts) return;
+      const d = new Date(ts * 1000);
+      document.getElementById('last-update-label').textContent =
+        'Updated ' + d.toLocaleTimeString();
+    }
+
+    async function loadInitial() {
+      try {
+        // Check if configured
+        const summaryRes = await fetch('/api/event/summary');
+        if (summaryRes.status === 503) {
+          document.getElementById('main-content').style.display = 'none';
+          document.getElementById('no-sources').style.display = 'flex';
+          return;
+        }
+
+        const [summary, zones, flow, alerts, timeline] = await Promise.all([
+          summaryRes.json(),
+          fetch('/api/event/zones').then(r => r.json()),
+          fetch('/api/event/flow').then(r => r.json()),
+          fetch('/api/event/alerts').then(r => r.json()),
+          fetch('/api/event/timeline').then(r => r.json())
+        ]);
+
+        state.summary = summary;
+        state.zones = Array.isArray(zones) ? zones : [];
+        state.flow = Array.isArray(flow) ? flow : [];
+        state.alerts = Array.isArray(alerts) ? alerts : [];
+        state.timeline = Array.isArray(timeline) ? timeline : [];
+
+        renderSummary(state.summary);
+        renderZones(state.zones);
+        renderFlow(state.flow);
+        renderAlerts(state.alerts);
+        renderTimeline(state.timeline);
+
+        // Refresh timeline every 30s (WS doesn't push it)
+        setInterval(async () => {
+          try {
+            const tl = await fetch('/api/event/timeline').then(r => r.json());
+            if (Array.isArray(tl)) renderTimeline(tl);
+          } catch {}
+        }, 30000);
+
+      } catch (err) {
+        console.error('loadInitial failed:', err);
+      }
+    }
+
+    function escHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    connect();
+  </script>
+</body>
+</html>
