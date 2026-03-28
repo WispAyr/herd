@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Herd — Analytics</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0f; --bg2: #12121a; --bg3: #1a1a26; --border: #2a2a3a;
+      --text: #e0e0f0; --text-dim: #7070a0;
+      --green: #00ff88; --amber: #ffaa00; --red: #ff4444; --blue: #4488ff;
+      --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+
+    header {
+      display: flex; align-items: center; gap: 1rem; padding: 1rem 1.5rem;
+      background: var(--bg2); border-bottom: 1px solid var(--border);
+    }
+    .logo { display: flex; align-items: center; gap: 0.5rem; font-size: 1.5rem; font-weight: 700; color: var(--green); letter-spacing: 0.05em; }
+    .logo svg { width: 32px; height: 32px; }
+    .nav-links { margin-left: auto; display: flex; gap: 1rem; }
+    .nav-links a { color: var(--text-dim); text-decoration: none; font-size: 0.8rem; }
+    .nav-links a:hover { color: var(--green); }
+
+    main { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }
+
+    .controls { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center; }
+    .controls select, .controls button {
+      background: var(--bg2); color: var(--text); border: 1px solid var(--border);
+      border-radius: 6px; padding: 0.5rem 1rem; font-size: 0.85rem; cursor: pointer;
+    }
+    .controls select:focus, .controls button:focus { outline: none; border-color: var(--green); }
+    .controls button.active { background: var(--green); color: var(--bg); font-weight: 600; }
+
+    .section-title {
+      font-size: 0.85rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 0.75rem;
+    }
+
+    .peak-stats { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .peak-card {
+      background: var(--bg2); border: 1px solid var(--border); border-radius: 8px;
+      padding: 1rem 1.25rem; flex: 1; min-width: 150px;
+    }
+    .peak-card .label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem; }
+    .peak-card .value { font-size: 1.8rem; font-weight: 700; color: var(--green); line-height: 1; }
+    .peak-card .sub { font-size: 0.7rem; color: var(--text-dim); margin-top: 0.2rem; }
+
+    .chart-container {
+      background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+      padding: 1.25rem; margin-bottom: 1.5rem;
+    }
+    #main-chart { width: 100%; height: 300px; }
+
+    .flow-chart-container {
+      background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+      padding: 1.25rem; margin-bottom: 1.5rem;
+    }
+    #flow-chart { width: 100%; height: 200px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="16" cy="10" r="5" fill="currentColor" opacity="0.9"/>
+        <ellipse cx="16" cy="22" rx="8" ry="5" fill="currentColor" opacity="0.7"/>
+        <ellipse cx="8" cy="22" rx="3" ry="4" fill="currentColor" opacity="0.5"/>
+        <ellipse cx="24" cy="22" rx="3" ry="4" fill="currentColor" opacity="0.5"/>
+        <path d="M11 8 Q6 4 5 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+        <path d="M21 8 Q26 4 27 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+      </svg>
+      HERD
+    </div>
+    <span style="color:var(--text-dim); font-size:0.85rem">Analytics</span>
+    <div class="nav-links">
+      <a href="/">Dashboard</a>
+      <a href="/event">Event</a>
+      <a href="/heatmap">Heatmap</a>
+      <a href="/mobile">Mobile</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="controls">
+      <select id="zone-select"><option value="">Loading zones...</option></select>
+      <button class="period-btn active" data-period="1h">1H</button>
+      <button class="period-btn" data-period="6h">6H</button>
+      <button class="period-btn" data-period="24h">24H</button>
+      <button class="period-btn" data-period="7d">7D</button>
+    </div>
+
+    <div class="peak-stats">
+      <div class="peak-card">
+        <div class="label">Peak Count</div>
+        <div class="value" id="peak-count">--</div>
+        <div class="sub" id="peak-time">--</div>
+      </div>
+      <div class="peak-card">
+        <div class="label">Average</div>
+        <div class="value" id="avg-count">--</div>
+        <div class="sub" id="sample-count">--</div>
+      </div>
+      <div class="peak-card">
+        <div class="label">Capacity</div>
+        <div class="value" id="capacity-val">--</div>
+        <div class="sub" id="zone-name-display">--</div>
+      </div>
+    </div>
+
+    <div class="section-title">Headcount Over Time</div>
+    <div class="chart-container">
+      <canvas id="main-chart"></canvas>
+    </div>
+
+    <div class="section-title">Flow Magnitude Over Time</div>
+    <div class="flow-chart-container">
+      <canvas id="flow-chart"></canvas>
+    </div>
+  </main>
+
+  <script>
+    // Minimal canvas chart renderer — no external libs
+    let currentZone = '';
+    let currentPeriod = '1h';
+
+    // Load zones
+    async function loadZones() {
+      const res = await fetch('/api/zones');
+      const zones = await res.json();
+      const sel = document.getElementById('zone-select');
+      if (!zones.length) { sel.innerHTML = '<option value="">No zones</option>'; return; }
+      sel.innerHTML = zones.map(z => `<option value="${z.id}">${z.name}</option>`).join('');
+      currentZone = zones[0].id;
+      sel.value = currentZone;
+      loadData();
+    }
+
+    document.getElementById('zone-select').addEventListener('change', e => {
+      currentZone = e.target.value;
+      loadData();
+    });
+
+    document.querySelectorAll('.period-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentPeriod = btn.dataset.period;
+        loadData();
+      });
+    });
+
+    async function loadData() {
+      if (!currentZone) return;
+      const [histRes, peakRes, flowRes] = await Promise.all([
+        fetch(`/api/history?zone_id=${currentZone}&period=${currentPeriod}`),
+        fetch(`/api/history/peak?zone_id=${currentZone}&period=${currentPeriod}`),
+        fetch(`/api/flow/history?zone_id=${currentZone}&period=${currentPeriod}`)
+      ]);
+
+      const hist = await histRes.json();
+      const peak = await peakRes.json();
+
+      // Peak stats
+      document.getElementById('peak-count').textContent = peak.peak_count ?? '--';
+      document.getElementById('peak-time').textContent = peak.peak_time ? new Date(peak.peak_time * 1000).toLocaleString() : '--';
+      document.getElementById('avg-count').textContent = peak.avg_count ?? '--';
+      document.getElementById('sample-count').textContent = `${peak.samples ?? 0} samples`;
+      document.getElementById('capacity-val').textContent = peak.capacity ?? '--';
+      document.getElementById('zone-name-display').textContent = peak.zone_name ?? '--';
+
+      // Draw count chart
+      drawChart('main-chart', hist.buckets || [], 'avg_count', '#00ff88');
+
+      // Draw flow chart
+      try {
+        const flowData = await flowRes.json();
+        drawChart('flow-chart', flowData.buckets || [], 'avg_magnitude', '#4488ff');
+      } catch { drawChart('flow-chart', [], 'avg_magnitude', '#4488ff'); }
+    }
+
+    function drawChart(canvasId, data, valueKey, color) {
+      const canvas = document.getElementById(canvasId);
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+
+      const W = rect.width;
+      const H = rect.height;
+      const PAD_L = 45, PAD_R = 15, PAD_T = 15, PAD_B = 30;
+
+      ctx.clearRect(0, 0, W, H);
+
+      if (!data || data.length < 2) {
+        ctx.fillStyle = '#7070a0';
+        ctx.font = '13px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('No data for this period', W / 2, H / 2);
+        return;
+      }
+
+      const values = data.map(d => d[valueKey] ?? 0);
+      const maxVal = Math.max(...values, 1);
+      const minTs = data[0].bucket;
+      const maxTs = data[data.length - 1].bucket;
+      const tsRange = maxTs - minTs || 1;
+
+      const chartW = W - PAD_L - PAD_R;
+      const chartH = H - PAD_T - PAD_B;
+
+      function toX(ts) { return PAD_L + ((ts - minTs) / tsRange) * chartW; }
+      function toY(val) { return PAD_T + chartH - (val / maxVal) * chartH; }
+
+      // Grid lines
+      ctx.strokeStyle = '#1a1a26';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = PAD_T + (chartH / 4) * i;
+        ctx.beginPath(); ctx.moveTo(PAD_L, y); ctx.lineTo(W - PAD_R, y); ctx.stroke();
+      }
+
+      // Y-axis labels
+      ctx.fillStyle = '#7070a0';
+      ctx.font = '10px system-ui';
+      ctx.textAlign = 'right';
+      for (let i = 0; i <= 4; i++) {
+        const val = Math.round(maxVal - (maxVal / 4) * i);
+        const y = PAD_T + (chartH / 4) * i;
+        ctx.fillText(String(val), PAD_L - 5, y + 3);
+      }
+
+      // X-axis labels
+      ctx.textAlign = 'center';
+      const labelCount = Math.min(6, data.length);
+      for (let i = 0; i < labelCount; i++) {
+        const idx = Math.floor((i / (labelCount - 1)) * (data.length - 1));
+        const ts = data[idx].bucket;
+        const x = toX(ts);
+        const d = new Date(ts * 1000);
+        ctx.fillText(d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), x, H - 5);
+      }
+
+      // Area fill
+      ctx.beginPath();
+      ctx.moveTo(toX(data[0].bucket), PAD_T + chartH);
+      data.forEach(d => ctx.lineTo(toX(d.bucket), toY(d[valueKey] ?? 0)));
+      ctx.lineTo(toX(data[data.length - 1].bucket), PAD_T + chartH);
+      ctx.closePath();
+      const grad = ctx.createLinearGradient(0, PAD_T, 0, PAD_T + chartH);
+      grad.addColorStop(0, color + '40');
+      grad.addColorStop(1, color + '08');
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Line
+      ctx.beginPath();
+      data.forEach((d, i) => {
+        const x = toX(d.bucket);
+        const y = toY(d[valueKey] ?? 0);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+    }
+
+    // Auto-refresh every 30s
+    setInterval(() => { if (currentZone) loadData(); }, 30000);
+
+    // Handle resize
+    window.addEventListener('resize', () => { if (currentZone) loadData(); });
+
+    loadZones();
+  </script>
+</body>
+</html>

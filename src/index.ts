@@ -11,6 +11,7 @@ import countsRouter from './routes/counts';
 import flowRouter from './routes/flow';
 import alertsRouter from './routes/alerts';
 import eventRouter from './routes/event';
+import historyRouter from './routes/history';
 
 const PORT = parseInt(process.env.PORT || '3070', 10);
 
@@ -33,6 +34,7 @@ async function main() {
   app.use('/api/flow', flowRouter);
   app.use('/api/alerts', alertsRouter);
   app.use('/api/event', eventRouter);
+  app.use('/api/history', historyRouter);
 
   // Per-instance dashboard
   app.get('/', (_req, res) => {
@@ -42,6 +44,11 @@ async function main() {
   // Event-wide aggregated dashboard
   app.get('/event', (_req, res) => {
     res.sendFile(path.join(__dirname, 'event-dashboard.html'));
+  });
+
+  // Analytics page
+  app.get('/analytics', (_req, res) => {
+    res.sendFile(path.join(__dirname, 'analytics.html'));
   });
 
   // Catch-all for unknown routes

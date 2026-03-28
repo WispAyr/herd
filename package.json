@@ -4,7 +4,7 @@
   "description": "Real-time crowd analytics platform for live events",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc && cp src/dashboard.html dist/dashboard.html && cp src/event-dashboard.html dist/event-dashboard.html",
+    "build": "tsc && cp src/*.html dist/",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
     "watch": "tsc --watch"

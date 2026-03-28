@@ -80,4 +80,19 @@ export function initDb() {
   `);
 
   console.log('[db] Schema initialised');
+
+  // Auto-prune old data on startup
+  pruneOldData();
+  // Prune every 6 hours
+  setInterval(pruneOldData, 6 * 60 * 60 * 1000);
+}
+
+/** Delete count/flow data older than 7 days */
+export function pruneOldData() {
+  const cutoff = Math.floor(Date.now() / 1000) - 7 * 86400;
+  const countResult = db.prepare('DELETE FROM counts WHERE timestamp < ?').run(cutoff);
+  const flowResult = db.prepare('DELETE FROM flow WHERE timestamp < ?').run(cutoff);
+  if (countResult.changes > 0 || flowResult.changes > 0) {
+    console.log(`[db] Pruned ${countResult.changes} counts, ${flowResult.changes} flow records older than 7 days`);
+  }
 }

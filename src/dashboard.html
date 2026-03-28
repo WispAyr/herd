@@ -236,6 +236,9 @@
     .alert-badge.warning { background: rgba(255,170,0,0.15); color: var(--amber); border: 1px solid var(--amber); }
     .alert-badge.critical { background: rgba(255,68,68,0.15); color: var(--red); border: 1px solid var(--red); }
 
+    .sparkline-row { margin-top: 0.5rem; }
+    .sparkline-row img { width: 100%; height: 30px; display: block; }
+
     /* Empty state */
     .empty-state {
       text-align: center;
@@ -294,6 +297,12 @@
     </div>
     <span class="status-label" id="status-label">Connecting…</span>
     <div class="status-dot" id="status-dot"></div>
+    <nav style="margin-left:auto;display:flex;gap:1rem">
+      <a href="/analytics" style="color:var(--text-dim);text-decoration:none;font-size:0.8rem">Analytics</a>
+      <a href="/heatmap" style="color:var(--text-dim);text-decoration:none;font-size:0.8rem">Heatmap</a>
+      <a href="/event" style="color:var(--text-dim);text-decoration:none;font-size:0.8rem">Event</a>
+      <a href="/mobile" style="color:var(--text-dim);text-decoration:none;font-size:0.8rem">Mobile</a>
+    </nav>
   </header>
 
   <div id="alert-banner"></div>
@@ -404,6 +413,9 @@
               <span style="margin-left:auto; font-size:0.8rem; color: var(--text-dim)">${pct}%</span>
             </div>
             ${alertBadge}
+            <div class="sparkline-row">
+              <img src="/api/history/sparkline?zone_id=${zid}" alt="sparkline" loading="lazy">
+            </div>
           </div>
         `;
       }).join('');
