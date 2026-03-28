@@ -58,7 +58,8 @@ async function runInference(imageBuffer: Buffer): Promise<BBox[]> {
     if (!res.ok) return [];
     const data = await res.json() as { detections: BBox[] };
     return (data.detections || []).filter((d: BBox) => d.class_id === 0); // person class only
-  } catch {
+  } catch (err) {
+    console.error(`[camera] Inference error:`, err);
     return [];
   }
 }
@@ -152,9 +153,13 @@ async function processNextCamera() {
   if (!stream) return;
 
   const frame = await fetchSnapshot(stream);
-  if (!frame) return;
+  if (!frame) {
+    console.log(`[camera] No frame from ${stream}`);
+    return;
+  }
 
   const bboxes = await runInference(frame);
+  console.log(`[camera] ${stream}: ${bboxes.length} detections (${frame.length} bytes)`);
   updateZoneCounts(camera.id, bboxes);
 }
 

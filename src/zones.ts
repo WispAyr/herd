@@ -20,8 +20,18 @@ export function pointInPolygon(point: Point, polygon: Point[]): boolean {
 }
 
 export function parsePolygon(raw: string): Point[] {
+  // Try JSON array first: [{x:0,y:0}, ...]
   try {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+  } catch { /* not JSON */ }
+
+  // Fall back to space-separated "x,y x,y ..." format
+  try {
+    return raw.trim().split(/\s+/).map(pair => {
+      const [x, y] = pair.split(',').map(Number);
+      return { x, y };
+    }).filter(p => !isNaN(p.x) && !isNaN(p.y));
   } catch {
     return [];
   }
