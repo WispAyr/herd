@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Herd — Crowd Analytics</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --bg2: #12121a;
+      --bg3: #1a1a26;
+      --border: #2a2a3a;
+      --text: #e0e0f0;
+      --text-dim: #7070a0;
+      --green: #00ff88;
+      --amber: #ffaa00;
+      --red: #ff4444;
+      --blue: #4488ff;
+      --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.5rem;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: var(--green);
+    }
+
+    .logo svg { width: 32px; height: 32px; }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-dim);
+      transition: background 0.3s;
+      margin-left: auto;
+    }
+    .status-dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-dot.error { background: var(--red); }
+
+    .status-label {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+
+    /* Alert Banner */
+    #alert-banner {
+      display: none;
+      padding: 0.75rem 1.5rem;
+      background: var(--red);
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.9rem;
+      animation: pulse 1.5s infinite;
+    }
+
+    #alert-banner.warning { background: var(--amber); color: #000; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.85; }
+    }
+
+    /* Main layout */
+    main {
+      padding: 1.5rem;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    /* Stats bar */
+    .stats-bar {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .stat-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.5rem;
+      min-width: 140px;
+      flex: 1;
+    }
+
+    .stat-card .label {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+
+    .stat-card .value {
+      font-size: 2rem;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--green);
+    }
+
+    .stat-card .sublabel {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 0.25rem;
+    }
+
+    /* Zones grid */
+    .zones-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+
+    .zone-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      position: relative;
+      transition: border-color 0.3s;
+    }
+
+    .zone-card.warning { border-color: var(--amber); }
+    .zone-card.critical { border-color: var(--red); box-shadow: 0 0 12px rgba(255,68,68,0.2); }
+
+    .zone-card .zone-name {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .zone-card .zone-camera {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-bottom: 1rem;
+    }
+
+    .zone-count-row {
+      display: flex;
+      align-items: baseline;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .zone-count {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--green);
+      line-height: 1;
+      transition: color 0.3s;
+    }
+
+    .zone-card.warning .zone-count { color: var(--amber); }
+    .zone-card.critical .zone-count { color: var(--red); }
+
+    .zone-capacity {
+      font-size: 0.9rem;
+      color: var(--text-dim);
+    }
+
+    .trend-arrow {
+      font-size: 1.2rem;
+      margin-left: auto;
+    }
+
+    /* Capacity bar */
+    .cap-bar {
+      height: 6px;
+      background: var(--bg3);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 0.75rem;
+    }
+
+    .cap-bar-fill {
+      height: 100%;
+      background: var(--green);
+      border-radius: 3px;
+      transition: width 0.5s ease, background 0.3s;
+      max-width: 100%;
+    }
+
+    .zone-card.warning .cap-bar-fill { background: var(--amber); }
+    .zone-card.critical .cap-bar-fill { background: var(--red); }
+
+    /* Flow indicator */
+    .flow-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+
+    .flow-arrow {
+      font-size: 1.1rem;
+      color: var(--blue);
+    }
+
+    .alert-badge {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 0.5rem;
+    }
+
+    .alert-badge.warning { background: rgba(255,170,0,0.15); color: var(--amber); border: 1px solid var(--amber); }
+    .alert-badge.critical { background: rgba(255,68,68,0.15); color: var(--red); border: 1px solid var(--red); }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--text-dim);
+    }
+
+    .empty-state h2 { font-size: 1.2rem; margin-bottom: 0.5rem; }
+    .empty-state p { font-size: 0.9rem; }
+    .empty-state code {
+      background: var(--bg3);
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+
+    /* Section header */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .section-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+    }
+
+    .last-update {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
+
+    /* Timestamp */
+    #last-update { font-size: 0.75rem; color: var(--text-dim); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Bull silhouette icon -->
+        <circle cx="16" cy="10" r="5" fill="currentColor" opacity="0.9"/>
+        <ellipse cx="16" cy="22" rx="8" ry="5" fill="currentColor" opacity="0.7"/>
+        <ellipse cx="8" cy="22" rx="3" ry="4" fill="currentColor" opacity="0.5"/>
+        <ellipse cx="24" cy="22" rx="3" ry="4" fill="currentColor" opacity="0.5"/>
+        <!-- Horns -->
+        <path d="M11 8 Q6 4 5 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+        <path d="M21 8 Q26 4 27 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+      </svg>
+      HERD
+    </div>
+    <span class="status-label" id="status-label">Connecting…</span>
+    <div class="status-dot" id="status-dot"></div>
+  </header>
+
+  <div id="alert-banner"></div>
+
+  <main>
+    <div class="stats-bar">
+      <div class="stat-card">
+        <div class="label">Total Headcount</div>
+        <div class="value" id="total-count">—</div>
+        <div class="sublabel">across all zones</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Active Zones</div>
+        <div class="value" id="zone-count">—</div>
+        <div class="sublabel">monitored areas</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Active Alerts</div>
+        <div class="value" id="alert-count" style="color: var(--text-dim)">—</div>
+        <div class="sublabel">capacity warnings</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Last Update</div>
+        <div class="value" style="font-size: 1.2rem; color: var(--text-dim)" id="last-ts">—</div>
+        <div class="sublabel">real-time via WebSocket</div>
+      </div>
+    </div>
+
+    <div class="section-header">
+      <span class="section-title">Zone Overview</span>
+    </div>
+
+    <div class="zones-grid" id="zones-grid">
+      <div class="empty-state">
+        <h2>No zones configured</h2>
+        <p>Add zones via the API: <code>POST /api/zones</code></p>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const state = {
+      zones: {},
+      alerts: {}
+    };
+
+    function flowLabel(label) {
+      const map = {
+        'moving-right': '→',
+        'moving-left': '←',
+        'moving-up': '↑',
+        'moving-down': '↓',
+        'still': '·',
+        'mixed': '↕',
+        'none': ''
+      };
+      return map[label] || '';
+    }
+
+    function trendArrow(pct) {
+      if (pct >= 90) return '<span style="color:var(--red)">▲</span>';
+      if (pct >= 70) return '<span style="color:var(--amber)">▲</span>';
+      return '<span style="color:var(--green)">▼</span>';
+    }
+
+    function renderZones() {
+      const grid = document.getElementById('zones-grid');
+      const keys = Object.keys(state.zones);
+      if (keys.length === 0) {
+        grid.innerHTML = `<div class="empty-state"><h2>No zones configured</h2><p>Add zones via <code>POST /api/zones</code></p></div>`;
+        return;
+      }
+
+      let totalCount = 0;
+      let alertCount = 0;
+      let highestAlert = null;
+
+      grid.innerHTML = keys.map(zid => {
+        const z = state.zones[zid];
+        const pct = z.pct || 0;
+        const alertLevel = z.alert || null;
+        if (alertLevel === 'critical') alertCount++;
+        else if (alertLevel === 'warning') alertCount++;
+        if (alertLevel === 'critical') highestAlert = 'critical';
+        else if (alertLevel === 'warning' && highestAlert !== 'critical') highestAlert = 'warning';
+        totalCount += z.count || 0;
+
+        const alertBadge = alertLevel ? `<div class="alert-badge ${alertLevel}">${alertLevel}</div>` : '';
+        const flow = z.flow || {};
+        const flowArrow = flowLabel(flow.label);
+        const flowText = flow.magnitude > 1 ? `${flowArrow} ${flow.label || ''}` : '· still';
+
+        return `
+          <div class="zone-card ${alertLevel || ''}">
+            <div class="zone-name">${z.name}</div>
+            <div class="zone-camera">${z.camera_id || ''}</div>
+            <div class="zone-count-row">
+              <span class="zone-count">${z.count ?? '—'}</span>
+              <span class="zone-capacity">/ ${z.capacity}</span>
+              <span class="trend-arrow">${trendArrow(pct)}</span>
+            </div>
+            <div class="cap-bar">
+              <div class="cap-bar-fill" style="width: ${Math.min(pct, 100)}%"></div>
+            </div>
+            <div class="flow-row">
+              <span class="flow-arrow">${flowArrow}</span>
+              <span>${flowText}</span>
+              <span style="margin-left:auto; font-size:0.8rem; color: var(--text-dim)">${pct}%</span>
+            </div>
+            ${alertBadge}
+          </div>
+        `;
+      }).join('');
+
+      // Update stats
+      document.getElementById('total-count').textContent = totalCount;
+      document.getElementById('zone-count').textContent = keys.length;
+      const alertEl = document.getElementById('alert-count');
+      alertEl.textContent = alertCount;
+      alertEl.style.color = alertCount > 0 ? 'var(--red)' : 'var(--text-dim)';
+
+      // Alert banner
+      const banner = document.getElementById('alert-banner');
+      if (highestAlert === 'critical') {
+        banner.style.display = 'block';
+        banner.className = 'critical';
+        banner.textContent = `⚠️ CRITICAL: ${alertCount} zone(s) exceeding safe capacity`;
+      } else if (highestAlert === 'warning') {
+        banner.style.display = 'block';
+        banner.className = 'warning';
+        banner.textContent = `⚠️ WARNING: ${alertCount} zone(s) approaching capacity`;
+      } else {
+        banner.style.display = 'none';
+      }
+    }
+
+    function connect() {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const ws = new WebSocket(`${proto}//${location.host}`);
+      const dot = document.getElementById('status-dot');
+      const label = document.getElementById('status-label');
+
+      ws.onopen = () => {
+        dot.className = 'status-dot connected';
+        label.textContent = 'Live';
+        loadInitial();
+      };
+
+      ws.onclose = () => {
+        dot.className = 'status-dot error';
+        label.textContent = 'Reconnecting…';
+        setTimeout(connect, 3000);
+      };
+
+      ws.onerror = () => {
+        dot.className = 'status-dot error';
+        label.textContent = 'Error';
+      };
+
+      ws.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === 'counts') {
+            const ts = new Date(msg.timestamp * 1000);
+            document.getElementById('last-ts').textContent = ts.toLocaleTimeString();
+            for (const z of (msg.zones || [])) {
+              state.zones[z.zone_id] = { ...state.zones[z.zone_id], ...z };
+            }
+            renderZones();
+          }
+        } catch {}
+      };
+    }
+
+    async function loadInitial() {
+      try {
+        const res = await fetch('/api/counts');
+        const data = await res.json();
+        if (data.zones) {
+          for (const z of data.zones) {
+            state.zones[z.zone_id] = {
+              ...state.zones[z.zone_id],
+              zone_id: z.zone_id,
+              name: z.name,
+              count: z.count,
+              capacity: z.capacity,
+              pct: z.capacity > 0 ? Math.round((z.count / z.capacity) * 100) : 0,
+              alert: z.alert_level
+            };
+          }
+          renderZones();
+        }
+
+        // Load zone names/cameras
+        const zRes = await fetch('/api/zones');
+        const zones = await zRes.json();
+        for (const z of zones) {
+          if (!state.zones[z.id]) state.zones[z.id] = {};
+          state.zones[z.id].name = z.name;
+          state.zones[z.id].camera_id = z.camera_id;
+          state.zones[z.id].capacity = z.capacity;
+        }
+        renderZones();
+      } catch (err) {
+        console.error('Failed to load initial data', err);
+      }
+    }
+
+    connect();
+  </script>
+</body>
+</html>
