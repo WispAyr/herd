@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Herd — Airspace &amp; Environment</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --bg2: #12121a;
+      --bg3: #1a1a26;
+      --border: #2a2a3a;
+      --text: #e0e0f0;
+      --text-dim: #7070a0;
+      --green: #00ff88;
+      --amber: #ffaa00;
+      --red: #ff4444;
+      --blue: #4488ff;
+      --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.5rem;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: var(--green);
+    }
+
+    .logo svg { width: 32px; height: 32px; }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-dim);
+      transition: background 0.3s;
+    }
+    .status-dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-dot.error { background: var(--red); }
+
+    .status-label {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+
+    nav {
+      margin-left: auto;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+    nav a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 0.8rem;
+      transition: color 0.2s;
+    }
+    nav a:hover { color: var(--green); }
+    nav a.active { color: var(--green); }
+
+    main {
+      padding: 1.5rem;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .section-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* Drone alert card */
+    .drone-alert {
+      background: rgba(255,68,68,0.1);
+      backdrop-filter: blur(12px);
+      border: 2px solid var(--red);
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      animation: pulse-border 1.5s infinite;
+    }
+
+    .drone-alert .title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--red);
+      margin-bottom: 0.5rem;
+    }
+
+    .drone-alert .detail {
+      font-size: 0.85rem;
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    @keyframes pulse-border {
+      0%, 100% { border-color: var(--red); box-shadow: 0 0 12px rgba(255,68,68,0.3); }
+      50% { border-color: rgba(255,68,68,0.5); box-shadow: 0 0 4px rgba(255,68,68,0.1); }
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+
+    .glass-card {
+      background: rgba(255,255,255,0.03);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+    }
+
+    .glass-card .card-label {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+
+    .glass-card .card-value {
+      font-size: 2rem;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--green);
+    }
+
+    .glass-card .card-sub {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 0.3rem;
+    }
+
+    /* Weather panel */
+    .weather-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .weather-item {
+      background: rgba(255,255,255,0.03);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .weather-item .wi-label {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .weather-item .wi-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text);
+      margin: 0.3rem 0;
+    }
+
+    /* Alert feed */
+    .alert-feed {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .alert-entry {
+      display: flex;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.82rem;
+    }
+
+    .alert-entry:last-child { border-bottom: none; }
+
+    .alert-entry .ae-time {
+      color: var(--text-dim);
+      white-space: nowrap;
+      min-width: 60px;
+    }
+
+    .alert-entry .ae-level {
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .ae-level.critical { background: rgba(255,68,68,0.15); color: var(--red); }
+    .ae-level.warning { background: rgba(255,170,0,0.15); color: var(--amber); }
+    .ae-level.info { background: rgba(68,136,255,0.15); color: var(--blue); }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-dim);
+    }
+
+    .empty-state h2 { font-size: 1.2rem; margin-bottom: 0.5rem; color: var(--text); }
+
+    @media (max-width: 768px) {
+      nav { flex-wrap: wrap; gap: 0.5rem; }
+      .card-grid { grid-template-columns: 1fr; }
+      .weather-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="16" cy="10" r="5" fill="currentColor" opacity="0.9"/>
+        <ellipse cx="16" cy="22" rx="8" ry="5" fill="currentColor" opacity="0.7"/>
+        <ellipse cx="8" cy="22" rx="3" ry="4" fill="currentColor" opacity="0.5"/>
+        <ellipse cx="24" cy="22" rx="3" ry="4" fill="currentColor" opacity="0.5"/>
+        <path d="M11 8 Q6 4 5 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+        <path d="M21 8 Q26 4 27 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+      </svg>
+      HERD
+    </div>
+    <span class="status-label" id="status-label">Connecting...</span>
+    <div class="status-dot" id="status-dot"></div>
+    <nav>
+      <a href="/">Dashboard</a>
+      <a href="/analytics">Analytics</a>
+      <a href="/lorawan">LoRaWAN</a>
+      <a href="/event">Event</a>
+      <a href="/heatmap">Heatmap</a>
+      <a href="/meshmap" class="active">Airspace</a>
+      <a href="/mobile">Mobile</a>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Drone Incursion Alerts -->
+    <div id="drone-alerts"></div>
+
+    <div class="section-header">
+      <span class="section-title">Airspace &amp; Environment Overview</span>
+    </div>
+
+    <div class="card-grid" id="overview-cards">
+      <div class="glass-card">
+        <div class="card-label">Mesh-Mapper</div>
+        <div class="card-value" id="mm-status" style="font-size:1rem">--</div>
+        <div class="card-sub" id="mm-status-sub">checking...</div>
+      </div>
+      <div class="glass-card">
+        <div class="card-label">Drones Detected</div>
+        <div class="card-value" id="drone-count" style="color:var(--red)">--</div>
+        <div class="card-sub">Remote ID signals</div>
+      </div>
+      <div class="glass-card">
+        <div class="card-label">Aircraft Overhead</div>
+        <div class="card-value" id="aircraft-count" style="color:var(--amber)">--</div>
+        <div class="card-sub">ADS-B tracked</div>
+      </div>
+      <div class="glass-card">
+        <div class="card-label">Vessels</div>
+        <div class="card-value" id="vessel-count" style="color:var(--blue)">--</div>
+        <div class="card-sub">AIS tracked</div>
+      </div>
+    </div>
+
+    <!-- Weather Panel -->
+    <div class="section-header">
+      <span class="section-title">Weather Conditions</span>
+    </div>
+    <div class="weather-grid" id="weather-grid">
+      <div class="weather-item">
+        <div class="wi-label">Temperature</div>
+        <div class="wi-value" id="wx-temp">--</div>
+      </div>
+      <div class="weather-item">
+        <div class="wi-label">Wind</div>
+        <div class="wi-value" id="wx-wind">--</div>
+      </div>
+      <div class="weather-item">
+        <div class="wi-label">Conditions</div>
+        <div class="wi-value" id="wx-conditions" style="font-size:1rem">--</div>
+      </div>
+      <div class="weather-item">
+        <div class="wi-label">Humidity</div>
+        <div class="wi-value" id="wx-humidity">--</div>
+      </div>
+      <div class="weather-item">
+        <div class="wi-label">Pressure</div>
+        <div class="wi-value" id="wx-pressure">--</div>
+      </div>
+      <div class="weather-item">
+        <div class="wi-label">Visibility</div>
+        <div class="wi-value" id="wx-visibility">--</div>
+      </div>
+    </div>
+
+    <!-- Drone Details -->
+    <div id="drone-details-section" style="display:none">
+      <div class="section-header">
+        <span class="section-title">Drone Detections</span>
+      </div>
+      <div class="card-grid" id="drone-grid"></div>
+    </div>
+
+    <!-- Alert Feed -->
+    <div class="section-header">
+      <span class="section-title">Alert Feed</span>
+    </div>
+    <div class="glass-card">
+      <div class="alert-feed" id="alert-feed">
+        <div class="empty-state">
+          <p>No alerts received yet</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const dot = document.getElementById('status-dot');
+    const label = document.getElementById('status-label');
+
+    async function fetchJson(url) {
+      try {
+        const r = await fetch(url);
+        if (!r.ok) return null;
+        return await r.json();
+      } catch { return null; }
+    }
+
+    async function loadStatus() {
+      const data = await fetchJson('/api/meshmap/status');
+      const el = document.getElementById('mm-status');
+      const sub = document.getElementById('mm-status-sub');
+      if (data) {
+        el.textContent = 'Online';
+        el.style.color = 'var(--green)';
+        sub.textContent = data.uptime ? 'uptime: ' + data.uptime : 'connected';
+        dot.className = 'status-dot connected';
+        label.textContent = 'Live';
+      } else {
+        el.textContent = 'Offline';
+        el.style.color = 'var(--red)';
+        sub.textContent = 'mesh-mapper unreachable';
+        dot.className = 'status-dot error';
+        label.textContent = 'Disconnected';
+      }
+    }
+
+    async function loadDrones() {
+      const data = await fetchJson('/api/meshmap/drones');
+      const alertsDiv = document.getElementById('drone-alerts');
+      const countEl = document.getElementById('drone-count');
+      const detailSection = document.getElementById('drone-details-section');
+      const grid = document.getElementById('drone-grid');
+
+      if (!data) { countEl.textContent = '--'; return; }
+
+      const drones = Array.isArray(data) ? data : (data.drones || []);
+      countEl.textContent = drones.length;
+
+      if (drones.length > 0) {
+        countEl.style.color = 'var(--red)';
+        // Big red alert
+        alertsDiv.innerHTML = drones.map(d => `
+          <div class="drone-alert">
+            <div class="title">DRONE INCURSION DETECTED</div>
+            <div class="detail">
+              <strong>ID:</strong> ${escHtml(d.id || d.mac || 'Unknown')}<br>
+              ${d.operator_id ? '<strong>Operator:</strong> ' + escHtml(d.operator_id) + '<br>' : ''}
+              ${d.latitude ? '<strong>Position:</strong> ' + d.latitude.toFixed(5) + ', ' + d.longitude.toFixed(5) + '<br>' : ''}
+              ${d.altitude ? '<strong>Altitude:</strong> ' + d.altitude + 'm<br>' : ''}
+              ${d.speed ? '<strong>Speed:</strong> ' + d.speed + ' m/s<br>' : ''}
+              <strong>Last seen:</strong> ${d.last_seen ? new Date(d.last_seen * 1000).toLocaleTimeString() : 'now'}
+            </div>
+          </div>
+        `).join('');
+
+        detailSection.style.display = 'block';
+        grid.innerHTML = drones.map(d => `
+          <div class="glass-card" style="border-color:var(--red)">
+            <div class="card-label" style="color:var(--red)">Drone</div>
+            <div style="font-weight:600;margin-bottom:0.3rem">${escHtml(d.id || d.mac || 'Unknown')}</div>
+            <div class="card-sub">${d.description || d.type || 'Remote ID detection'}</div>
+          </div>
+        `).join('');
+      } else {
+        alertsDiv.innerHTML = '';
+        countEl.style.color = 'var(--green)';
+        detailSection.style.display = 'none';
+      }
+    }
+
+    async function loadAircraft() {
+      const data = await fetchJson('/api/meshmap/aircraft');
+      const el = document.getElementById('aircraft-count');
+      if (!data) { el.textContent = '--'; return; }
+      const list = Array.isArray(data) ? data : (data.aircraft || []);
+      el.textContent = list.length;
+    }
+
+    async function loadWeather() {
+      const data = await fetchJson('/api/meshmap/weather');
+      if (!data) return;
+
+      const wx = data.weather || data;
+      document.getElementById('wx-temp').textContent = wx.temperature != null ? wx.temperature + '\u00B0C' : '--';
+      document.getElementById('wx-wind').textContent = wx.wind_speed != null ? wx.wind_speed + ' km/h' : (wx.wind || '--');
+      document.getElementById('wx-conditions').textContent = wx.conditions || wx.description || wx.summary || '--';
+      document.getElementById('wx-humidity').textContent = wx.humidity != null ? wx.humidity + '%' : '--';
+      document.getElementById('wx-pressure').textContent = wx.pressure != null ? wx.pressure + ' hPa' : '--';
+      document.getElementById('wx-visibility').textContent = wx.visibility != null ? wx.visibility + ' km' : '--';
+    }
+
+    async function loadAlerts() {
+      const data = await fetchJson('/api/meshmap/alerts');
+      const feed = document.getElementById('alert-feed');
+      if (!data) { return; }
+
+      const alerts = Array.isArray(data) ? data : (data.alerts || []);
+      if (alerts.length === 0) {
+        feed.innerHTML = '<div class="empty-state"><p>No alerts</p></div>';
+        return;
+      }
+
+      // Also count vessels from alerts or separate endpoint
+      const vesselEl = document.getElementById('vessel-count');
+      const vesselAlerts = alerts.filter(a => a.type === 'vessel' || a.source === 'ais');
+      // vessel count comes from dedicated data, not alerts
+
+      feed.innerHTML = alerts.slice(0, 50).map(a => {
+        const time = a.timestamp ? new Date(a.timestamp * 1000).toLocaleTimeString() : (a.time || '--');
+        const level = a.level || a.severity || 'info';
+        return `
+          <div class="alert-entry">
+            <span class="ae-time">${time}</span>
+            <span class="ae-level ${level}">${level}</span>
+            <span>${escHtml(a.message || a.description || a.type || 'Alert')}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Vessel count — try to extract from aircraft endpoint or use a placeholder
+    async function loadVessels() {
+      // mesh-mapper /api/vessels
+      try {
+        const r = await fetch('/api/meshmap/status');
+        // Vessels aren't proxied separately yet — get from mesh-mapper directly or show 0
+        const el = document.getElementById('vessel-count');
+        // We'll proxy /api/vessels through the same pattern
+        const data = await fetchJson('/api/meshmap/alerts');
+        if (data) {
+          const vessels = Array.isArray(data) ? data.filter((a) => a.source === 'ais') : [];
+          el.textContent = vessels.length || '0';
+        }
+      } catch { }
+    }
+
+    function escHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    async function refreshAll() {
+      await Promise.all([
+        loadStatus(),
+        loadDrones(),
+        loadAircraft(),
+        loadWeather(),
+        loadAlerts(),
+        loadVessels()
+      ]);
+    }
+
+    refreshAll();
+    setInterval(refreshAll, 15000);
+  </script>
+</body>
+</html>
