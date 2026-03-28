@@ -18,6 +18,9 @@ import gatesRouter from './routes/gates';
 import occupancyRouter from './routes/occupancy';
 import externalRouter from './routes/external';
 import lorawanRouter from './routes/lorawan';
+import predictionsRouter from './routes/predictions';
+import templatesRouter from './routes/templates';
+import meshmapRouter from './routes/meshmap';
 
 const PORT = parseInt(process.env.PORT || '3070', 10);
 
@@ -46,6 +49,9 @@ async function main() {
   app.use('/api/v1', occupancyRouter);
   app.use('/api/external-count', externalRouter);
   app.use('/api/lorawan', lorawanRouter);
+  app.use('/api/predictions', predictionsRouter);
+  app.use('/api/templates', templatesRouter);
+  app.use('/api/meshmap', meshmapRouter);
 
   // Per-instance dashboard
   app.get('/', (_req, res) => {
@@ -75,6 +81,11 @@ async function main() {
   // LoRaWAN dashboard
   app.get('/lorawan', (_req, res) => {
     res.sendFile(path.join(__dirname, 'lorawan.html'));
+  });
+
+  // Airspace / Mesh-Mapper dashboard
+  app.get('/meshmap', (_req, res) => {
+    res.sendFile(path.join(__dirname, 'meshmap.html'));
   });
 
   // Catch-all for unknown routes

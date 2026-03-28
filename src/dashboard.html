@@ -378,6 +378,75 @@
     /* Timestamp */
     #last-update { font-size: 0.75rem; color: var(--text-dim); }
 
+    /* Prediction cards */
+    .prediction-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1rem;
+    }
+    .pred-card {
+      background: rgba(255,255,255,0.03);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+    }
+    .pred-card .pred-zone { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .pred-card .pred-trend { font-size: 1.4rem; margin-right: 0.5rem; }
+    .pred-card .pred-rate {
+      font-size: 0.85rem; font-weight: 600;
+      padding: 0.15rem 0.5rem; border-radius: 4px;
+      display: inline-block; margin-bottom: 0.5rem;
+    }
+    .pred-rate.positive { background: rgba(0,255,136,0.12); color: var(--green); }
+    .pred-rate.negative { background: rgba(255,68,68,0.12); color: var(--red); }
+    .pred-rate.neutral { background: rgba(112,112,160,0.12); color: var(--text-dim); }
+    .pred-forecast {
+      display: flex; gap: 1rem; margin-top: 0.5rem; flex-wrap: wrap;
+    }
+    .pred-forecast-item {
+      font-size: 0.75rem; color: var(--text-dim);
+    }
+    .pred-forecast-item .pf-val {
+      font-size: 1.1rem; font-weight: 700; color: var(--text); display: block;
+    }
+    .pred-peak {
+      font-size: 0.78rem; color: var(--amber); margin-top: 0.5rem;
+      font-style: italic;
+    }
+
+    /* Template manager */
+    .template-section { margin-top: 1.5rem; }
+    .template-controls {
+      display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center;
+    }
+    .template-controls input, .template-controls textarea {
+      background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text); padding: 0.5rem 0.75rem; font-size: 0.82rem;
+      font-family: var(--font);
+    }
+    .template-controls input { flex: 1; min-width: 180px; }
+    .template-controls textarea { flex: 2; min-width: 180px; height: 36px; resize: none; }
+    .btn {
+      background: var(--green); color: #000; border: none; border-radius: 6px;
+      padding: 0.5rem 1rem; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-danger { background: var(--red); color: #fff; }
+    .btn-blue { background: var(--blue); color: #fff; }
+    .template-list {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;
+    }
+    .tpl-card {
+      background: rgba(255,255,255,0.03); backdrop-filter: blur(12px);
+      border: 1px solid var(--border); border-radius: 10px; padding: 1rem;
+    }
+    .tpl-card .tpl-name { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .tpl-card .tpl-desc { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 0.5rem; }
+    .tpl-card .tpl-date { font-size: 0.7rem; color: var(--text-dim); margin-bottom: 0.75rem; }
+    .tpl-card .tpl-actions { display: flex; gap: 0.5rem; }
+
     /* Responsive */
     @media (max-width: 768px) {
       header { padding: 0.75rem 1rem; flex-wrap: wrap; gap: 0.5rem; }
@@ -417,6 +486,7 @@
       <a href="/lorawan">LoRaWAN</a>
       <a href="/event">Event</a>
       <a href="/heatmap">Heatmap</a>
+      <a href="/meshmap">Airspace</a>
       <a href="/mobile">Mobile</a>
     </nav>
   </header>
@@ -496,6 +566,27 @@
         <a href="/lorawan" style="font-size:0.75rem;color:var(--blue);text-decoration:none">View full dashboard →</a>
       </div>
       <div class="lora-mini-grid" id="lora-grid"></div>
+    </div>
+
+    <!-- Crowd Predictions -->
+    <div id="predictions-section" style="display:none;margin-top:1.5rem">
+      <div class="section-header">
+        <span class="section-title">Crowd Predictions</span>
+      </div>
+      <div class="prediction-grid" id="prediction-grid"></div>
+    </div>
+
+    <!-- Template Manager -->
+    <div class="template-section">
+      <div class="section-header">
+        <span class="section-title">Event Templates</span>
+      </div>
+      <div class="template-controls">
+        <input type="text" id="tpl-name" placeholder="Template name...">
+        <textarea id="tpl-desc" placeholder="Description (optional)"></textarea>
+        <button class="btn" onclick="saveTemplate()">Save Current Layout</button>
+      </div>
+      <div class="template-list" id="template-list"></div>
     </div>
   </main>
 
@@ -866,6 +957,130 @@
 
     setInterval(loadLoraGateways, 15000);
     setTimeout(loadLoraGateways, 2500);
+
+    // ── Crowd Predictions ──
+    async function loadPredictions() {
+      try {
+        const res = await fetch('/api/predictions');
+        const data = await res.json();
+        const section = document.getElementById('predictions-section');
+        const grid = document.getElementById('prediction-grid');
+        const preds = data.predictions || [];
+
+        if (preds.length === 0) { section.style.display = 'none'; return; }
+        section.style.display = 'block';
+
+        grid.innerHTML = preds.map(p => {
+          const rateClass = p.rate_per_min > 1 ? 'positive' : p.rate_per_min < -1 ? 'negative' : 'neutral';
+          const rateSign = p.rate_per_min > 0 ? '+' : '';
+          const peakStr = p.predicted_peak_time
+            ? `Expected peak: ~${p.predicted_peak} at ${p.predicted_peak_time}`
+            : 'No peak predicted';
+
+          return `
+            <div class="pred-card">
+              <div class="pred-zone">${p.zone_name}</div>
+              <span class="pred-trend">${p.trend_symbol}</span>
+              <span class="pred-rate ${rateClass}">${rateSign}${p.rate_per_min}/min</span>
+              <div class="pred-forecast">
+                <div class="pred-forecast-item">
+                  <span class="pf-val">${p.predicted_15m}</span>
+                  15 min
+                </div>
+                <div class="pred-forecast-item">
+                  <span class="pf-val">${p.predicted_30m}</span>
+                  30 min
+                </div>
+                <div class="pred-forecast-item">
+                  <span class="pf-val">${p.predicted_60m}</span>
+                  60 min
+                </div>
+              </div>
+              <div class="pred-peak">${peakStr}</div>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        console.error('Predictions load failed', e);
+      }
+    }
+
+    setInterval(loadPredictions, 15000);
+    setTimeout(loadPredictions, 3000);
+
+    // ── Template Manager ──
+    async function loadTemplates() {
+      try {
+        const res = await fetch('/api/templates');
+        const templates = await res.json();
+        const list = document.getElementById('template-list');
+
+        if (!Array.isArray(templates) || templates.length === 0) {
+          list.innerHTML = '<div style="color:var(--text-dim);font-size:0.82rem">No saved templates</div>';
+          return;
+        }
+
+        list.innerHTML = templates.map(t => {
+          const date = new Date(t.created_at * 1000).toLocaleString();
+          return `
+            <div class="tpl-card">
+              <div class="tpl-name">${t.name}</div>
+              <div class="tpl-desc">${t.description || ''}</div>
+              <div class="tpl-date">Saved: ${date}</div>
+              <div class="tpl-actions">
+                <button class="btn btn-blue" onclick="loadTemplate('${t.id}', '${t.name.replace(/'/g, "\\'")}')">Load</button>
+                <button class="btn btn-danger" onclick="deleteTemplate('${t.id}')">Delete</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        console.error('Templates load failed', e);
+      }
+    }
+
+    async function saveTemplate() {
+      const name = document.getElementById('tpl-name').value.trim();
+      if (!name) { alert('Enter a template name'); return; }
+      const description = document.getElementById('tpl-desc').value.trim();
+
+      const res = await fetch('/api/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, description })
+      });
+
+      if (res.ok) {
+        document.getElementById('tpl-name').value = '';
+        document.getElementById('tpl-desc').value = '';
+        loadTemplates();
+      } else {
+        const err = await res.json();
+        alert('Failed: ' + (err.error || 'Unknown error'));
+      }
+    }
+
+    async function loadTemplate(id, name) {
+      if (!confirm('Load template "' + name + '"?\n\nThis will REPLACE all current cameras, zones, and gates with the template configuration.')) return;
+
+      const res = await fetch('/api/templates/' + id + '/load', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        alert('Template loaded: ' + data.cameras + ' cameras, ' + data.zones + ' zones, ' + data.gates + ' gates');
+        location.reload();
+      } else {
+        const err = await res.json();
+        alert('Failed: ' + (err.error || 'Unknown error'));
+      }
+    }
+
+    async function deleteTemplate(id) {
+      if (!confirm('Delete this template?')) return;
+      await fetch('/api/templates/' + id, { method: 'DELETE' });
+      loadTemplates();
+    }
+
+    setTimeout(loadTemplates, 1000);
 
     connect();
   </script>
