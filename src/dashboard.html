@@ -365,6 +365,11 @@
         <div class="sublabel">monitored areas</div>
       </div>
       <div class="stat-card">
+        <div class="label">BLE Estimate</div>
+        <div class="value" id="ble-count" style="color: var(--blue)">—</div>
+        <div class="sublabel" id="ble-sublabel">bluetooth sources</div>
+      </div>
+      <div class="stat-card">
         <div class="label">Active Alerts</div>
         <div class="value" id="alert-count" style="color: var(--text-dim)">—</div>
         <div class="sublabel">capacity warnings</div>
@@ -392,6 +397,13 @@
         <span class="section-title">Gate Counters (24h)</span>
       </div>
       <div class="gates-grid" id="gates-grid"></div>
+    </div>
+
+    <div id="external-section" style="display:none;margin-top:1.5rem">
+      <div class="section-header">
+        <span class="section-title">📡 External Sources (Bluetooth / WiFi)</span>
+      </div>
+      <div class="zones-grid" id="external-grid"></div>
     </div>
   </main>
 
@@ -611,6 +623,67 @@
     }
     // Refresh gates every 10s
     setInterval(loadGates, 10000);
+
+    // ── External Sources (BLE/WiFi) ──
+    async function loadExternal() {
+      try {
+        const res = await fetch('/api/external-count');
+        const data = await res.json();
+        const section = document.getElementById('external-section');
+        const grid = document.getElementById('external-grid');
+        const bleCount = document.getElementById('ble-count');
+        const bleSub = document.getElementById('ble-sublabel');
+
+        if (!data.sources || data.sources.length === 0) {
+          section.style.display = 'none';
+          bleCount.textContent = '—';
+          bleSub.textContent = 'no sources';
+          return;
+        }
+
+        section.style.display = 'block';
+        bleCount.textContent = data.total;
+        bleCount.style.color = data.total > 50 ? 'var(--amber)' : 'var(--blue)';
+        bleSub.textContent = `${data.sources.length} source${data.sources.length > 1 ? 's' : ''}`;
+
+        // Also add to total count
+        const totalEl = document.getElementById('total-count');
+        const cameraTotal = parseInt(totalEl.textContent) || 0;
+        // total-count already includes external from API, no need to add
+
+        grid.innerHTML = data.sources.map(s => {
+          const meta = s.metadata || {};
+          const staleClass = s.stale ? 'style="opacity:0.5"' : '';
+          const age = Math.floor(Date.now()/1000) - s.timestamp;
+          const ageStr = age < 60 ? `${age}s ago` : `${Math.floor(age/60)}m ago`;
+          const icon = s.source_type === 'bluetooth' ? '📡' : s.source_type === 'wifi' ? '📶' : '🔌';
+
+          return `
+            <div class="zone-card" ${staleClass}>
+              <div class="zone-name">${icon} ${s.source_id} <span style="font-size:0.7em;color:var(--text-dim)">(${s.source_type})</span></div>
+              <div class="zone-count-row">
+                <span class="zone-count" style="color:var(--blue)">${s.count}</span>
+                <span class="zone-capacity">estimated people</span>
+              </div>
+              <div style="display:flex;gap:1rem;font-size:0.75em;color:var(--text-dim);margin-top:0.5rem">
+                <span>🔊 ${meta.bt_devices || 0} devices</span>
+                <span>📶 ${meta.bt_strong_signal || 0} strong</span>
+                <span>×${meta.multiplier || '?'} mult</span>
+              </div>
+              <div style="font-size:0.7em;color:${s.stale ? 'var(--red)' : 'var(--green)'};margin-top:0.3rem">
+                ${s.stale ? '⚠️ STALE' : '✅ Live'} · ${ageStr}
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch(e) {
+        console.error('External load failed', e);
+      }
+    }
+
+    setInterval(loadExternal, 10000);
+    // Initial load after page ready
+    setTimeout(loadExternal, 2000);
 
     connect();
   </script>

@@ -345,6 +345,39 @@
       } catch (err) { console.error('loadInitial:', err); }
     }
 
+    // ── External BLE/WiFi sources on mobile ──
+    async function loadExternalMobile() {
+      try {
+        const res = await fetch('/api/external-count');
+        const data = await res.json();
+        if (!data.sources || data.sources.length === 0) return;
+        // Add external as virtual zone slides
+        for (const s of data.sources) {
+          const id = 'ext-' + s.source_id;
+          if (!state.zones[id]) { state.zones[id] = {}; state.order.push(id); }
+          const meta = s.metadata || {};
+          state.zones[id] = {
+            zone_id: id,
+            name: `📡 ${s.source_id}`,
+            camera_id: `${s.source_type} · ${meta.bt_devices || 0} devices`,
+            count: s.count,
+            capacity: 0,
+            pct: 0,
+            alert: s.stale ? 'warning' : null
+          };
+        }
+        // Update total
+        const totalEl = document.getElementById('total-count');
+        const cameraTotal = Object.values(state.zones)
+          .filter(z => !z.zone_id?.startsWith('ext-'))
+          .reduce((s, z) => s + (z.count || 0), 0);
+        totalEl.textContent = cameraTotal + data.total;
+        render();
+      } catch {}
+    }
+    setInterval(loadExternalMobile, 10000);
+    setTimeout(loadExternalMobile, 3000);
+
     connect();
   </script>
 </body>
