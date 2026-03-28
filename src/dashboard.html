@@ -290,6 +290,22 @@
 
     /* Timestamp */
     #last-update { font-size: 0.75rem; color: var(--text-dim); }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      header { padding: 0.75rem 1rem; flex-wrap: wrap; gap: 0.5rem; }
+      header nav { width: 100%; justify-content: center; margin-left: 0; }
+      main { padding: 1rem; }
+      .stats-bar { gap: 0.5rem; }
+      .stat-card { min-width: 100px; padding: 0.75rem 1rem; }
+      .stat-card .value { font-size: 1.5rem; }
+      .zones-grid { grid-template-columns: 1fr; }
+      .zone-count { font-size: 2rem; }
+    }
+    @media (max-width: 480px) {
+      .stats-bar { flex-direction: column; }
+      .stat-card { min-width: auto; }
+    }
   </style>
 </head>
 <body>

@@ -58,6 +58,11 @@ async function main() {
     res.sendFile(path.join(__dirname, 'heatmap.html'));
   });
 
+  // Mobile dashboard
+  app.get('/mobile', (_req, res) => {
+    res.sendFile(path.join(__dirname, 'mobile.html'));
+  });
+
   // Catch-all for unknown routes
   app.use((_req, res) => {
     res.status(404).json({ error: 'Not found' });

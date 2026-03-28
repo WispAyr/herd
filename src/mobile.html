@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Herd — Mobile</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0f; --bg2: #12121a; --bg3: #1a1a26; --border: #2a2a3a;
+      --text: #e0e0f0; --text-dim: #7070a0;
+      --green: #00ff88; --amber: #ffaa00; --red: #ff4444; --blue: #4488ff;
+      --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+    html, body { height: 100%; overflow: hidden; touch-action: pan-y; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font); display: flex; flex-direction: column; }
+
+    /* Header */
+    .top-bar {
+      display: flex; align-items: center; padding: 0.75rem 1rem;
+      background: var(--bg2); border-bottom: 1px solid var(--border);
+      gap: 0.5rem; flex-shrink: 0;
+    }
+    .top-bar .logo { font-size: 1.2rem; font-weight: 700; color: var(--green); }
+    .top-bar .total {
+      margin-left: auto; font-size: 1.8rem; font-weight: 900; color: var(--green);
+      font-variant-numeric: tabular-nums;
+    }
+    .top-bar .total.warn { color: var(--amber); }
+    .top-bar .total.crit { color: var(--red); }
+    .ws-indicator { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); flex-shrink: 0; }
+    .ws-indicator.connected { background: var(--green); box-shadow: 0 0 5px var(--green); }
+
+    /* Zone count strip */
+    .zone-strip {
+      display: flex; gap: 0.5rem; padding: 0.5rem 1rem; overflow-x: auto;
+      background: var(--bg2); border-bottom: 1px solid var(--border); flex-shrink: 0;
+      -webkit-overflow-scrolling: touch;
+    }
+    .zone-tab {
+      flex-shrink: 0; padding: 0.4rem 0.8rem; border-radius: 6px;
+      background: var(--bg3); border: 1px solid var(--border);
+      font-size: 0.75rem; color: var(--text-dim); cursor: pointer;
+      transition: all 0.2s; white-space: nowrap;
+    }
+    .zone-tab.active { border-color: var(--green); color: var(--green); background: rgba(0,255,136,0.08); }
+    .zone-tab.warning { border-color: var(--amber); }
+    .zone-tab.critical { border-color: var(--red); }
+
+    /* Swipe container */
+    .swipe-container {
+      flex: 1; overflow: hidden; position: relative; min-height: 0;
+    }
+    .swipe-track {
+      display: flex; height: 100%; transition: transform 0.3s ease;
+    }
+
+    /* Zone slide */
+    .zone-slide {
+      width: 100%; flex-shrink: 0; padding: 1.5rem 1rem;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 1rem; overflow-y: auto;
+    }
+
+    .mobile-zone-name { font-size: 1rem; font-weight: 600; color: var(--text-dim); text-align: center; }
+
+    .big-count {
+      font-size: 6rem; font-weight: 900; line-height: 1;
+      color: var(--green); text-shadow: 0 0 40px rgba(0,255,136,0.3);
+      font-variant-numeric: tabular-nums; text-align: center;
+      transition: color 0.3s;
+    }
+    .big-count.warn { color: var(--amber); text-shadow: 0 0 40px rgba(255,170,0,0.3); }
+    .big-count.crit { color: var(--red); text-shadow: 0 0 40px rgba(255,68,68,0.3); }
+
+    .mobile-capacity {
+      font-size: 1.2rem; color: var(--text-dim); text-align: center;
+    }
+
+    .mobile-bar {
+      width: 80%; max-width: 300px; height: 8px; background: var(--bg3);
+      border-radius: 4px; overflow: hidden;
+    }
+    .mobile-bar-fill {
+      height: 100%; background: var(--green); border-radius: 4px;
+      transition: width 0.5s, background 0.3s;
+    }
+    .mobile-bar-fill.warn { background: var(--amber); }
+    .mobile-bar-fill.crit { background: var(--red); }
+
+    .mobile-flow {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.9rem; color: var(--text-dim);
+    }
+    .mobile-flow svg { width: 32px; height: 32px; }
+
+    .mobile-alert-badge {
+      padding: 0.3rem 0.8rem; border-radius: 6px;
+      font-size: 0.8rem; font-weight: 700; text-transform: uppercase;
+    }
+    .mobile-alert-badge.warning { background: rgba(255,170,0,0.15); color: var(--amber); border: 1px solid var(--amber); }
+    .mobile-alert-badge.critical { background: rgba(255,68,68,0.15); color: var(--red); border: 1px solid var(--red); }
+
+    /* Dots */
+    .dots {
+      display: flex; justify-content: center; gap: 0.4rem;
+      padding: 0.75rem; flex-shrink: 0;
+    }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--border); transition: background 0.3s;
+    }
+    .dot.active { background: var(--green); }
+
+    /* Bottom bar */
+    .bottom-bar {
+      display: flex; justify-content: space-around; padding: 0.6rem 0;
+      background: var(--bg2); border-top: 1px solid var(--border); flex-shrink: 0;
+    }
+    .bottom-bar a {
+      color: var(--text-dim); text-decoration: none; font-size: 0.7rem;
+      text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.2rem;
+    }
+    .bottom-bar a:hover, .bottom-bar a.active { color: var(--green); }
+    .bottom-bar svg { width: 20px; height: 20px; }
+
+    /* Empty state */
+    .empty { text-align: center; padding: 3rem 1rem; color: var(--text-dim); }
+    .empty h2 { font-size: 1.1rem; margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <span class="logo">HERD</span>
+    <div class="ws-indicator" id="ws-dot"></div>
+    <span class="total" id="total-count">--</span>
+  </div>
+
+  <div class="zone-strip" id="zone-strip"></div>
+
+  <div class="swipe-container" id="swipe-container">
+    <div class="swipe-track" id="swipe-track">
+      <div class="zone-slide"><div class="empty"><h2>No zones</h2><p>Waiting for data...</p></div></div>
+    </div>
+  </div>
+
+  <div class="dots" id="dots"></div>
+
+  <div class="bottom-bar">
+    <a href="/" class="active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </a>
+    <a href="/analytics">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Analytics
+    </a>
+    <a href="/heatmap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="4"/></svg>
+      Heatmap
+    </a>
+    <a href="/event">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20"/></svg>
+      Event
+    </a>
+  </div>
+
+  <script>
+    const state = { zones: {}, order: [], currentIdx: 0 };
+    let touchStartX = 0, touchDeltaX = 0, isSwiping = false;
+
+    const FLOW_ICONS = { 'moving-right':'Right','moving-left':'Left','moving-up':'Up','moving-down':'Down','still':'Still','mixed':'Mixed','none':'Still' };
+
+    function flowSvg(flow) {
+      if (!flow || (!flow.direction_x && !flow.direction_y)) {
+        return '<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="4" fill="#7070a0"/></svg>';
+      }
+      const angle = Math.atan2(flow.direction_y || 0, flow.direction_x || 0) * (180 / Math.PI);
+      return `<svg viewBox="0 0 32 32"><g transform="translate(16,16) rotate(${angle})"><line x1="-8" y1="0" x2="8" y2="0" stroke="#4488ff" stroke-width="2.5"/><polyline points="4,-4 8,0 4,4" fill="none" stroke="#4488ff" stroke-width="2.5" stroke-linejoin="round"/></g></svg>`;
+    }
+
+    function render() {
+      const keys = state.order;
+      const strip = document.getElementById('zone-strip');
+      const track = document.getElementById('swipe-track');
+      const dotsEl = document.getElementById('dots');
+
+      if (keys.length === 0) {
+        strip.innerHTML = '';
+        track.innerHTML = '<div class="zone-slide"><div class="empty"><h2>No zones</h2><p>Waiting for data...</p></div></div>';
+        dotsEl.innerHTML = '';
+        return;
+      }
+
+      // Total
+      let total = 0, hasAlert = null;
+      keys.forEach(k => {
+        const z = state.zones[k];
+        total += z.count || 0;
+        if (z.alert === 'critical') hasAlert = 'crit';
+        else if (z.alert === 'warning' && hasAlert !== 'crit') hasAlert = 'warn';
+      });
+      const totalEl = document.getElementById('total-count');
+      totalEl.textContent = total;
+      totalEl.className = 'total' + (hasAlert ? ' ' + hasAlert : '');
+
+      // Zone tabs
+      strip.innerHTML = keys.map((k, i) => {
+        const z = state.zones[k];
+        const alertCls = z.alert || '';
+        return `<div class="zone-tab ${alertCls} ${i === state.currentIdx ? 'active' : ''}" data-idx="${i}">${z.name}: ${z.count ?? '--'}</div>`;
+      }).join('');
+
+      strip.querySelectorAll('.zone-tab').forEach(tab => {
+        tab.addEventListener('click', () => { goToSlide(parseInt(tab.dataset.idx)); });
+      });
+
+      // Slides
+      track.innerHTML = keys.map(k => {
+        const z = state.zones[k];
+        const pct = z.pct || 0;
+        const alertClass = pct >= 90 ? 'crit' : pct >= 70 ? 'warn' : '';
+        const flow = z.flow || {};
+        const alertBadge = z.alert ? `<div class="mobile-alert-badge ${z.alert}">${z.alert}</div>` : '';
+
+        return `
+          <div class="zone-slide">
+            <div class="mobile-zone-name">${z.name}</div>
+            <div class="big-count ${alertClass}">${z.count ?? '--'}</div>
+            <div class="mobile-capacity">of ${z.capacity} (${pct}%)</div>
+            <div class="mobile-bar"><div class="mobile-bar-fill ${alertClass}" style="width:${Math.min(pct,100)}%"></div></div>
+            <div class="mobile-flow">
+              ${flowSvg(flow)}
+              <span>${FLOW_ICONS[flow.label] || 'Still'}</span>
+            </div>
+            ${alertBadge}
+          </div>`;
+      }).join('');
+
+      // Dots
+      dotsEl.innerHTML = keys.map((_, i) => `<div class="dot ${i === state.currentIdx ? 'active' : ''}"></div>`).join('');
+
+      updateSlidePosition(false);
+    }
+
+    function goToSlide(idx) {
+      state.currentIdx = Math.max(0, Math.min(idx, state.order.length - 1));
+      updateSlidePosition(true);
+      // Update active states
+      document.querySelectorAll('.zone-tab').forEach((t, i) => t.classList.toggle('active', i === state.currentIdx));
+      document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === state.currentIdx));
+    }
+
+    function updateSlidePosition(animate) {
+      const track = document.getElementById('swipe-track');
+      track.style.transition = animate ? 'transform 0.3s ease' : 'none';
+      track.style.transform = `translateX(-${state.currentIdx * 100}%)`;
+    }
+
+    // Touch swipe handling
+    const container = document.getElementById('swipe-container');
+    container.addEventListener('touchstart', e => {
+      touchStartX = e.touches[0].clientX;
+      isSwiping = true;
+      touchDeltaX = 0;
+    }, { passive: true });
+
+    container.addEventListener('touchmove', e => {
+      if (!isSwiping) return;
+      touchDeltaX = e.touches[0].clientX - touchStartX;
+      const track = document.getElementById('swipe-track');
+      const base = -state.currentIdx * container.clientWidth;
+      track.style.transition = 'none';
+      track.style.transform = `translateX(${base + touchDeltaX}px)`;
+    }, { passive: true });
+
+    container.addEventListener('touchend', () => {
+      if (!isSwiping) return;
+      isSwiping = false;
+      const threshold = container.clientWidth * 0.25;
+      if (touchDeltaX < -threshold && state.currentIdx < state.order.length - 1) {
+        goToSlide(state.currentIdx + 1);
+      } else if (touchDeltaX > threshold && state.currentIdx > 0) {
+        goToSlide(state.currentIdx - 1);
+      } else {
+        updateSlidePosition(true);
+      }
+    });
+
+    // WebSocket
+    function connect() {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const ws = new WebSocket(`${proto}//${location.host}`);
+      const dot = document.getElementById('ws-dot');
+
+      ws.onopen = () => { dot.className = 'ws-indicator connected'; loadInitial(); };
+      ws.onclose = () => { dot.className = 'ws-indicator'; setTimeout(connect, 3000); };
+      ws.onerror = () => { dot.className = 'ws-indicator'; };
+
+      ws.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === 'counts') {
+            for (const z of (msg.zones || [])) {
+              if (!state.zones[z.zone_id]) {
+                state.zones[z.zone_id] = {};
+                state.order.push(z.zone_id);
+              }
+              Object.assign(state.zones[z.zone_id], z);
+            }
+            render();
+          }
+        } catch {}
+      };
+    }
+
+    async function loadInitial() {
+      try {
+        const [countsRes, zonesRes] = await Promise.all([
+          fetch('/api/counts').then(r => r.json()),
+          fetch('/api/zones').then(r => r.json())
+        ]);
+
+        for (const z of (zonesRes || [])) {
+          if (!state.zones[z.id]) { state.zones[z.id] = {}; state.order.push(z.id); }
+          state.zones[z.id].name = z.name;
+          state.zones[z.id].camera_id = z.camera_id;
+          state.zones[z.id].capacity = z.capacity;
+        }
+
+        if (countsRes?.zones) {
+          for (const z of countsRes.zones) {
+            if (!state.zones[z.zone_id]) { state.zones[z.zone_id] = {}; state.order.push(z.zone_id); }
+            state.zones[z.zone_id].zone_id = z.zone_id;
+            state.zones[z.zone_id].name = state.zones[z.zone_id].name || z.name;
+            state.zones[z.zone_id].count = z.count;
+            state.zones[z.zone_id].capacity = state.zones[z.zone_id].capacity || z.capacity;
+            state.zones[z.zone_id].pct = z.capacity > 0 ? Math.round((z.count / z.capacity) * 100) : 0;
+            state.zones[z.zone_id].alert = z.alert_level;
+          }
+        }
+        render();
+      } catch (err) { console.error('loadInitial:', err); }
+    }
+
+    connect();
+  </script>
+</body>
+</html>

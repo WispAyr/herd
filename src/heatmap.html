@@ -77,6 +77,14 @@
       width: 200px; height: 12px; border-radius: 3px;
       background: linear-gradient(to right, rgba(0,255,136,0.1), rgba(0,255,136,0.5), rgba(255,170,0,0.7), rgba(255,68,68,0.9));
     }
+
+    @media (max-width: 768px) {
+      header { padding: 0.75rem 1rem; flex-wrap: wrap; }
+      .nav-links { width: 100%; justify-content: center; margin-left: 0; }
+      main { padding: 1rem; }
+      .controls { gap: 0.5rem; }
+      .heatmap-wrapper { max-height: 50vh; }
+    }
   </style>
 </head>
 <body>
