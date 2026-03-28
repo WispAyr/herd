@@ -1,5 +1,7 @@
 import express from 'express';
 import http from 'http';
+import https from 'https';
+import fs from 'fs';
 import path from 'path';
 import { initDb } from './db';
 import { initWebSocket } from './ws';
@@ -113,6 +115,26 @@ async function main() {
     console.log(`Dashboard: http://localhost:${PORT}`);
     console.log(`API:       http://localhost:${PORT}/api`);
   });
+
+  // HTTPS server for WebXR (Quest 3 requires HTTPS for hand tracking)
+  const TLS_PORT = parseInt(process.env.TLS_PORT || String(PORT + 443), 10);
+  const certPath = process.env.TLS_CERT || './certs/cert.pem';
+  const keyPath = process.env.TLS_KEY || './certs/key.pem';
+
+  if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+    const tlsServer = https.createServer({
+      cert: fs.readFileSync(certPath),
+      key: fs.readFileSync(keyPath),
+    }, app);
+    initWebSocket(tlsServer);
+
+    tlsServer.listen(TLS_PORT, () => {
+      console.log(`🔒 HTTPS: https://localhost:${TLS_PORT}`);
+      console.log(`🥽 VR:    https://localhost:${TLS_PORT}/vr`);
+    });
+  } else {
+    console.log(`[tls] No certs at ${certPath} — HTTPS disabled (set TLS_CERT/TLS_KEY)`);
+  }
 
   // Start camera processing loop (2s interval)
   startCameraLoop(2000);
